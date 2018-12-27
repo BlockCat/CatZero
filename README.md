@@ -72,10 +72,10 @@ Illegal moves are masked out of course.
 
 
 ## Resources
-[Mastering Chess and Shogi by Self-Play with a General Reinforcement Learning Algorithm](https://arxiv.org/pdf/1712.01815.pdf)
-[A Simple Alpha(Go)Zero Tutorial](https://web.stanford.edu/~surag/posts/alphazero.html)
-[Mastering the Game of Go without Human Knowledge](http://discovery.ucl.ac.uk/10045895/1/agz_unformatted_nature.pdf) for the neural network structure
-[Deepmind AlphaZero - Mastering Games Without Human Knowledge](https://www.youtube.com/watch?v=Wujy7OzvdJk)
+- [Mastering Chess and Shogi by Self-Play with a General Reinforcement Learning Algorithm](https://arxiv.org/pdf/1712.01815.pdf)
+- [A Simple Alpha(Go)Zero Tutorial](https://web.stanford.edu/~surag/posts/alphazero.html)
+- [Mastering the Game of Go without Human Knowledge](http://discovery.ucl.ac.uk/10045895/1/agz_unformatted_nature.pdf) for the neural network structure
+- [Deepmind AlphaZero - Mastering Games Without Human Knowledge](https://www.youtube.com/watch?v=Wujy7OzvdJk)
 
 ## Other things
 * Reminder to be able to save and load the neural network so we can continue from where we quit.
