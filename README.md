@@ -24,15 +24,16 @@ The Policy network tells us what is the probability of a good move.
 The Value network tells us wheter the state is winning, draw or losing.
 
 1. Run a monte carlo tree simulation.
-    * From state $s_{root}$ take all moves.
-    * Simulate (alphazero did 800 simulations)
-    * For each child state $s$ select a move
+    * Create a new tree with $s$ as root
+    * Continue selecting child nodes (moves done) based on
       * low visit count
       * high move probability (neural network)
       * high value (neural network)
       * With dirichlet noise $Dir(\alpha)$
+    * Expand the node:
+      * Store probablilities of moves from this state
     * Propagate back
-2. Play the selected move
+2. Play the best found move
 3. Go back to 1. untill the game is over
 4. Train the neuralnetwork:
     * Train the policy for each state encountered

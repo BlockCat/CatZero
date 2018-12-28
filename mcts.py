@@ -5,6 +5,8 @@
 import time
 import math
 import random
+from abc import ABC
+from typing import List
 
 
 # In our case,
@@ -33,6 +35,23 @@ class treeNode():
         self.totalReward = 0
         self.children = {}
 
+class MctsAction(ABC):
+    pass
+
+class MctsState(ABC):
+    def evaluate(self): # When the state is created for the first time, store it and evaluate
+        pass
+    def getPossibleActions(self) -> List[MctsAction]: # Returns an iterable of all actions which can be taken from this state
+        pass
+    def takeAction(self, action: List[MctsAction]) -> MctsState: # Returns the state which results from taking action action
+        pass
+    def isTerminal(self) -> bool: # Returns whether this state is a terminal state
+        pass
+    def getReward(self) -> float: # Returns the reward for this state (predicted using neural network)
+        pass
+    def getProbability(self) -> float: # Returns the probability of a parent state going into this state (predicted using neural network)
+        pass
+
 
 class mcts():
     def __init__(self, timeLimit=None, iterationLimit=None, explorationConstant=1 / math.sqrt(2)):
@@ -52,6 +71,7 @@ class mcts():
             self.limitType = 'iterations'
         self.explorationConstant = explorationConstant        
 
+    # Returns the action needed
     def search(self, initialState):
         self.root = treeNode(initialState, None)
 
