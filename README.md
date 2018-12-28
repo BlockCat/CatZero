@@ -10,13 +10,10 @@ This project will probably end up in the dust, so excuses to any (if any) who co
 3. Provide an API to play against
 
 ## In progress
-
-## Todo
-* Find out how to create a deep resnet in rust
-  * What about leaf maybe?
-  * [Juice](https://github.com/spearow/juice)
 * Implement a monte carlo tree search algorithm
-  * from $s_{root}$ all the way to a leaf
+  
+## Todo
+* Fix the python model
 * Train the neural network with the game
 ## Finished
 
@@ -34,7 +31,6 @@ The Value network tells us wheter the state is winning, draw or losing.
       * high move probability (neural network)
       * high value (neural network)
       * With dirichlet noise $Dir(\alpha)$
-    * Until childnode
     * Propagate back
 2. Play the selected move
 3. Go back to 1. untill the game is over

@@ -7,15 +7,21 @@ import math
 import random
 
 
-def randomPolicy(state):
-    while not state.isTerminal():
-        try:
-            action = random.choice(state.getPossibleActions())
-        except IndexError:
-            raise Exception("Non-terminal state has no possible actions: " + str(state))
-        state = state.takeAction(action)
-    return state.getReward()
+# In our case,
+# we traverse the existing tree until leaf is found
+# leaf node is expanded and that state is evaluated by the neural network (P(s, .), V(s)) = nn(s)
+# where P(s, .) are predicted good move probabilities (stored in outgoing edges)
+# where V(s) is predicted game outcome (win, lose, draw)
+# back propagate to top
 
+
+# state needs to implement:
+# evaluate(): When the state is created for the first time, store it and evaluate
+# getPossibleActions(): Returns an iterable of all actions which can be taken from this state
+# takeAction(action): Returns the state which results from taking action action
+# isTerminal(): Returns whether this state is a terminal state
+# getReward(): Returns the reward for this state (predicted using neural network)
+# getProbability(): Returns the probability of a parent state going into this state (predicted using neural network)
 
 class treeNode():
     def __init__(self, state, parent):
@@ -27,19 +33,9 @@ class treeNode():
         self.totalReward = 0
         self.children = {}
 
-# ---------------------------
-# This mcts can be granted different policies.
-# Our rolloutPolicy should probably be based on our neural network
-# Might be that we should make this policy cache enabled
-#
-# REMEMBER to read
-# https://github.com/pbsinclair42/MCTS
-# for implementation details
-# ---------------------------
 
 class mcts():
-    def __init__(self, timeLimit=None, iterationLimit=None, explorationConstant=1 / math.sqrt(2),
-                 rolloutPolicy=randomPolicy):
+    def __init__(self, timeLimit=None, iterationLimit=None, explorationConstant=1 / math.sqrt(2)):
         if timeLimit != None:
             if iterationLimit != None:
                 raise ValueError("Cannot have both a time limit and an iteration limit")
@@ -54,8 +50,7 @@ class mcts():
                 raise ValueError("Iteration limit must be greater than one")
             self.searchLimit = iterationLimit
             self.limitType = 'iterations'
-        self.explorationConstant = explorationConstant
-        self.rollout = rolloutPolicy
+        self.explorationConstant = explorationConstant        
 
     def search(self, initialState):
         self.root = treeNode(initialState, None)
@@ -72,11 +67,11 @@ class mcts():
         return self.getAction(self.root, bestChild)
 
     def executeRound(self):
-        node = self.selectNode(self.root)
-        reward = self.rollout(node.state)
+        node = self.selectNode(self.root) # Select a node based on getBestChild
+        reward = node.state.getReward() # Get the predicted result of the state
         self.backpropogate(node, reward)
 
-    def selectNode(self, node):
+    def selectNode(self, node) -> treeNode:
         while not node.isTerminal:
             if node.isFullyExpanded:
                 node = self.getBestChild(node, self.explorationConstant)
@@ -84,7 +79,7 @@ class mcts():
                 return self.expand(node)
         return node
 
-    def expand(self, node):
+    def expand(self, node: treeNode) -> treeNode:
         actions = node.state.getPossibleActions()
         for action in actions:
             if action not in node.children.keys():
@@ -92,6 +87,8 @@ class mcts():
                 node.children[action] = newNode
                 if len(actions) == len(node.children):
                     node.isFullyExpanded = True
+
+                newNode.state.evaluate() # expand the current node and save state and probabiliies and reward
                 return newNode
 
         raise Exception("Should never reach here")
@@ -102,12 +99,18 @@ class mcts():
             node.totalReward += reward
             node = node.parent
 
-    def getBestChild(self, node, explorationValue):
+    # Change this to paper impl
+    def getBestChild(self, node, explorationValue) -> treeNode:
         bestValue = float("-inf")
         bestNodes = []
-        for child in node.children.values():
-            nodeValue = child.totalReward / child.numVisits + explorationValue * math.sqrt(
-                2 * math.log(node.numVisits) / child.numVisits)
+        for child in node.children.values():            
+            qsa = child.totalReward / child.numVisits
+
+            # The U(s, a) calculation is wrong for now
+            # it should be square root of the sum of all actions to get to the current state
+            usa = explorationValue * child.node.getProbability() * math.sqrt(child.numVisits) / (1 + child.numVisits)
+
+            nodeValue = qsa + usa
             if nodeValue >= bestValue:
                 bestValue = nodeValue
                 bestNodes.append(child)
