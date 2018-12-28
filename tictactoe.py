@@ -5,7 +5,7 @@ from keras.models import Model
 from keras.layers import Input
 from keras.layers.convolutional import Convolution2D
 from keras.layers import BatchNormalization, Activation, Add, Dense, Flatten
-from mcts import MctsAction, MctsState
+from mcts import MctsAction, MctsState, treeNode
 
 
 def create_input():
@@ -60,7 +60,7 @@ class TicTacToeState(MctsState):
             self.board = board
 
     # When the state is created for the first time, store it and evaluate
-    def evaluate(self):
+    def evaluate(self, node: treeNode):
         if self.isTerminal():
             # TODO
             # Set the reward to the appropriate value

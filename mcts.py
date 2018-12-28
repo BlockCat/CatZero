@@ -18,7 +18,7 @@ from typing import List
 
 
 # state needs to implement:
-# evaluate(): When the state is created for the first time, store it and evaluate
+# evaluate(node): When the state is created for the first time, store it and evaluate
 # getPossibleActions(): Returns an iterable of all actions which can be taken from this state
 # takeAction(action): Returns the state which results from taking action action
 # isTerminal(): Returns whether this state is a terminal state
@@ -32,14 +32,14 @@ class treeNode():
         self.isFullyExpanded = self.isTerminal
         self.parent = parent
         self.numVisits = 0
-        self.totalReward = 0
+        self.totalReward = 0        
         self.children = {}
 
 class MctsAction(ABC):
     pass
 
 class MctsState(ABC):
-    def evaluate(self): # When the state is created for the first time, store it and evaluate
+    def evaluate(self, node: treeNode): # When the state is created for the first time, store it and evaluate
         pass
     def getPossibleActions(self) -> List[MctsAction]: # Returns an iterable of all actions which can be taken from this state
         pass
@@ -108,7 +108,7 @@ class mcts():
                 if len(actions) == len(node.children):
                     node.isFullyExpanded = True
 
-                newNode.state.evaluate() # expand the current node and save state and probabiliies and reward
+                newNode.state.evaluate(newNode) # expand the current node and save state and probabiliies and reward
                 return newNode
 
         raise Exception("Should never reach here")
