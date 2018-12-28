@@ -40,7 +40,7 @@ value = value.reshape((1, 3, 3, 1))
 
 result = model.predict(state)
 
-model.fit(state, [probs, value], epochs = 2)
+#model.fit(state, [probs, value], epochs = 2)
 
 
 

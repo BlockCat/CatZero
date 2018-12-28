@@ -6,7 +6,7 @@ import time
 import math
 import random
 from abc import ABC
-from typing import List
+from typing import List, Type
 
 
 # In our case,
@@ -43,7 +43,7 @@ class MctsState(ABC):
         pass
     def getPossibleActions(self) -> List[MctsAction]: # Returns an iterable of all actions which can be taken from this state
         pass
-    def takeAction(self, action: List[MctsAction]) -> MctsState: # Returns the state which results from taking action action
+    def takeAction(self, action: List[MctsAction]) -> 'MctsState': # Returns the state which results from taking action action
         pass
     def isTerminal(self) -> bool: # Returns whether this state is a terminal state
         pass
