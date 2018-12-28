@@ -1,4 +1,4 @@
-# CatZero-rust
+# CatZero
 The goal is to make implement alphazero inspired framework for which a set of rules and constraints can be the input.
 The reason I didn't call it AlphaZero is that I don't know if google would appreciate it.
 
