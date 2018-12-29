@@ -1,30 +1,31 @@
 from typing import Callable
 from keras.models import Model
-from keras.layers import BatchNormalization, Activation, Add, Dense, Convolution2D
-
+from keras.layers import BatchNormalization, Activation, Add, Dense, Convolution2D, Flatten
 
 def convolution_block(input: Model) -> Model:
-    model = Convolution2D(256, 3, padding="same", data_format="channels_last")(input)
+    model = Convolution2D(256, 3, padding="same", data_format="channels_first")(input)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
     return model
 
 
-def residual_block(model: Model, input: Model) -> Model:
-    model = Convolution2D(256, 3, padding="same", data_format="channels_last")(model)
+def residual_block(model: Model) -> Model:
+    input = model
+    model = Convolution2D(256, 3, padding="same", data_format="channels_first")(model)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
-    model = Convolution2D(5, 3, padding="same", data_format="channels_last")(model) ## WE CHANGED THIS FROM 256 to 5!
+    model = Convolution2D(256, 3, padding="same", data_format="channels_first")(model)
     model = BatchNormalization()(model)
-    model = Add()([input, model])
+    model = Add()([model, input])
     model = Activation('relu')(model)
     return model
 
 
 def value_head(model: Model) -> Model:
-    model = Convolution2D(1, 1, padding="same", data_format="channels_last")(model)
+    model = Convolution2D(1, 1, padding="same", data_format="channels_first")(model)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
+    model = Flatten()(model)
     model = Dense(256)(model)
     model = Activation('relu')(model)
     model = Dense(1)(model)
@@ -34,9 +35,9 @@ def value_head(model: Model) -> Model:
 
 def create_model(input: Model, policy_factory: Callable[[Model], Model]) -> Model:
     model = convolution_block(input)
-    for i in range(10):
+    for i in range(5):
         print("Residual block: %s" % i)
-        model = residual_block(model, input)
+        model = residual_block(model)
 
     policy_h = policy_factory(model)
     value_h = value_head(model)

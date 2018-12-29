@@ -39,7 +39,7 @@ class MctsAction(ABC):
     pass
 
 class MctsState(ABC):
-    def evaluate(self, node: treeNode): # When the state is created for the first time, store it and evaluate
+    def evaluate(self, prev: List['MctsState']): # When the state is created for the first time, store it and evaluate
         pass
     def getPossibleActions(self) -> List[MctsAction]: # Returns an iterable of all actions which can be taken from this state
         pass
@@ -108,7 +108,7 @@ class mcts():
                 if len(actions) == len(node.children):
                     node.isFullyExpanded = True
 
-                newNode.state.evaluate(newNode) # expand the current node and save state and probabiliies and reward
+                newNode.state.evaluate([node.state]) # expand the current node and save state and probabiliies and reward
                 return newNode
 
         raise Exception("Should never reach here")
@@ -128,7 +128,7 @@ class mcts():
 
             # The U(s, a) calculation is wrong for now
             # it should be square root of the sum of all actions to get to the current state
-            usa = explorationValue * child.node.getProbability() * math.sqrt(child.numVisits) / (1 + child.numVisits)
+            usa = explorationValue * child.state.getProbability() * math.sqrt(child.numVisits) / (1 + child.numVisits)
 
             nodeValue = qsa + usa
             if nodeValue >= bestValue:

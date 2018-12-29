@@ -1,26 +1,27 @@
 import network
 from enum import Enum
 import numpy as np
-import tensorflow as tf
+
+from typing import List
 from keras.models import Model
 from keras.layers import Input
 from keras.layers.convolutional import Convolution2D
 from keras.layers import BatchNormalization, Activation, Add, Dense, Flatten
-from mcts import MctsAction, MctsState, treeNode
+from mcts import MctsAction, MctsState
 
 
 def create_input():
     # One plane for player 1
-    # One plane for player 1 previous
     # One plane for player 2
+    # One plane for player 1 previous
     # One plane for player 2 previous
     # One plane for colour to play
-    return Input(shape=(3, 3, 5))
+    return Input(batch_shape=(None, 5, 3, 3))
 
 
 def create_policy(model):
     model = Convolution2D(2, 1, padding="same",
-                          data_format="channels_last")(model)
+                          data_format="channels_first")(model)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
     model = Flatten()(model)
@@ -44,67 +45,86 @@ class Player(Enum):
 
 
 class TicTacToeAction(MctsAction):
-    def __init__(self, x: int, y: int, player: Player, probability: float):
+    def __init__(self, x: int, y: int, probability: float):
         self.x = x
         self.y = y
-        self.player = player
         self.probability = probability
 
+    def __str__(self):
+        return "TicTacToeAction [x:{}, y:{}, p:{}]".format(self.x, self.y, self.probability)
+
 # Represents the game and game logic, oh boi i miss rust already why did python not have traits/interfaces again?
-
-
 class TicTacToeState(MctsState):
     def __init__(self, player: Player, model, probability: float, board=None):
         self.player = player
         self.model = model
         self.probability = probability
         self.reward = 0
+        self.actions = []
+        self.winner = None
         # If no board is provided, create a new board
-        if board == None:
+        if board is None:
             self.board = np.array([[Player.Empty, Player.Empty, Player.Empty, Player.Empty, Player.Empty,
                                     Player.Empty, Player.Empty, Player.Empty, Player.Empty]]).reshape((1, 3, 3))[0]
         else:
             self.board = board
 
     # When the state is created for the first time, store it and evaluate
-    def evaluate(self, node: treeNode):
+    def evaluate(self, prev: List['TicTacToeState']):
         if self.isTerminal():
 
             # check who won
-            won_player = None
+            self.winner = None
             if self.checkRow(0) or self.checkCol(0):
-                won_player = self.board[0, 0]
+                self.winner = self.board[0, 0]
 
             if self.checkRow(1) or self.checkCol(1) or self.checkDiagLeftRight() or self.checkDiagRightLeft():
-                won_player = self.board[1, 1]
+                self.winner = self.board[1, 1]
 
             if self.checkRow(2) or self.checkCol(2):
-                won_player = self.board[2, 2]
+                self.winner = self.board[2, 2]
 
-            if won_player == None:  # It's a draw :(
+            if self.winner is None:  # It's a draw :(
                 self.reward = 0
-            elif won_player == self.player:  # Current player has won
+            elif self.winner == self.player:  # Current player has won
                 self.reward = 1
             else:  # Other player has won
                 self.reward = -1
         else:
-            tensor_input = Exception("Do something")
             # TODO evaluate using model
 
-            # convert board game to nnumpy array
+            colour_plane = np.repeat(0 if self.player is Player.Cross else 1, 9).reshape((3, 3))
+            current_planes = self.toNumpyArray()
 
-    def getPossibleActions(self):  # Returns an iterable of all actions which can be taken from this state\
+            if prev is None or len(prev) == 0:
+                prev_planes = [np.repeat(0, 9).reshape((3, 3)), np.repeat(0, 9).reshape((3, 3))]
+            else:
+                prev_planes = prev[0].toNumpyArray()
+
+            input = np.array([[current_planes[0], current_planes[1], prev_planes[0], prev_planes[1], colour_plane]])
+
+            result = self.model.predict(input)
+            action_probs = result[0].reshape((3,3))
+
+            for y in range(3):
+                for x in range(3):
+                    if self.board[y, x] is Player.Empty:
+                        self.actions.append(TicTacToeAction(x, y, action_probs[y, x]))
+
+            self.reward = result[1][0, 0]
+
+    def getPossibleActions(self) -> List[TicTacToeAction]:  # Returns an iterable of all actions which can be taken from this state\
         if self.isTerminal():
             return []
         else:
             # TODO
             # Return all empty spaces
-            return []
+            return self.actions
 
-    def takeAction(self, action):  # Returns the state which results from taking action action
+    def takeAction(self, action: TicTacToeAction):  # Returns the state which results from taking action action
         new_board = np.array(self.board, copy=True)
-        new_board[action.y, action.x] = action.player
-        if action.player == Player.Circle:
+        new_board[action.y, action.x] = self.player
+        if self.player == Player.Circle:
             next_player = Player.Cross
         else:
             next_player = Player.Circle
@@ -112,8 +132,10 @@ class TicTacToeState(MctsState):
 
     def isTerminal(self):  # Returns whether this state is a terminal state
         # Check if all are filled
-        if np.all([x != Player.Empty for x in self.board]):
+        if np.all([x is not Player.Empty for x in self.board.flatten()]):
+            self.winner = Player.Empty
             return True
+
         # Check three in a row
         if self.checkRow(0) or self.checkRow(1) or self.checkRow(2):
             return True
@@ -129,16 +151,16 @@ class TicTacToeState(MctsState):
         return False
 
     def checkRow(self, row: int) -> bool:
-        return self.board[row, 0] == self.board[row, 1] == self.board[row, 2]
+        return self.board[row, 0] == self.board[row, 1] == self.board[row, 2] and self.board[row, 0] is not Player.Empty
 
     def checkCol(self, col: int) -> bool:
-        return self.board[0, col] == self.board[1, col] == self.board[2, col]
+        return self.board[0, col] == self.board[1, col] == self.board[2, col] and self.board[0, col] is not Player.Empty
 
     def checkDiagLeftRight(self) -> bool:
-        return self.board[0, 0] == self.board[1, 1] == self.board[2, 2]
+        return self.board[0, 0] == self.board[1, 1] == self.board[2, 2] and self.board[1, 1] is not Player.Empty
 
     def checkDiagRightLeft(self) -> bool:
-        return self.board[0, 2] == self.board[1, 1] == self.board[0, 2]
+        return self.board[0, 2] == self.board[1, 1] == self.board[0, 2] and self.board[1, 1] is not Player.Empty
 
     def getReward(self):  # Returns the reward for this state (predicted using neural network)
         return self.reward
@@ -146,3 +168,29 @@ class TicTacToeState(MctsState):
     # Returns the probability of a parent state going into this state (predicted using neural network)
     def getProbability(self):
         return self.probability
+
+    def getWinner(self) -> Player:
+        return self.winner
+
+    def toNumpyArray(self):
+        # TODO: Flatten and then reshape? Could probably be done better
+        cross = np.fromiter((1 if x is Player.Cross else 0 for x in self.board.flatten()), dtype=np.int8).reshape(
+            (3, 3))
+        circle = np.fromiter((1 if x is Player.Circle else 0 for x in self.board.flatten()), dtype=np.int8).reshape(
+            (3, 3))
+        return [cross, circle]
+
+    def pretty_print(self):
+        print("┌───┐")
+        for y in range(3):
+            f = "│"
+            for x in range(3):
+                cell = self.board[y, x]
+                if cell == Player.Cross:
+                    f += 'X'
+                elif cell == Player.Circle:
+                    f += 'O'
+                else:
+                    f += ' '
+            print(f + '│')
+        print("└───┘")
