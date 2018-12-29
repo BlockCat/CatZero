@@ -41,20 +41,20 @@ class MctsAction(ABC):
 class MctsState(ABC):
     def evaluate(self, prev: List['MctsState']): # When the state is created for the first time, store it and evaluate
         pass
-    def getPossibleActions(self) -> List[MctsAction]: # Returns an iterable of all actions which can be taken from this state
+    def get_possible_actions(self) -> List[MctsAction]: # Returns an iterable of all actions which can be taken from this state
         pass
     def takeAction(self, action: List[MctsAction]) -> 'MctsState': # Returns the state which results from taking action action
         pass
     def isTerminal(self) -> bool: # Returns whether this state is a terminal state
         pass
-    def getReward(self) -> float: # Returns the reward for this state (predicted using neural network)
+    def get_reward(self) -> float: # Returns the reward for this state (predicted using neural network)
         pass
     def getProbability(self) -> float: # Returns the probability of a parent state going into this state (predicted using neural network)
         pass
 
 
 class mcts():
-    def __init__(self, timeLimit=None, iterationLimit=None, explorationConstant=1 / math.sqrt(2)):
+    def __init__(self, timeLimit=None, iterationLimit=None, explorationConstant=1):
         if timeLimit != None:
             if iterationLimit != None:
                 raise ValueError("Cannot have both a time limit and an iteration limit")
@@ -88,7 +88,7 @@ class mcts():
 
     def executeRound(self):
         node = self.selectNode(self.root) # Select a node based on getBestChild
-        reward = node.state.getReward() # Get the predicted result of the state
+        reward = node.state.get_reward() # Get the predicted result of the state
         self.backpropogate(node, reward)
 
     def selectNode(self, node) -> treeNode:
@@ -100,7 +100,7 @@ class mcts():
         return node
 
     def expand(self, node: treeNode) -> treeNode:
-        actions = node.state.getPossibleActions()
+        actions = node.state.get_possible_actions()
         for action in actions:
             if action not in node.children.keys():
                 newNode = treeNode(node.state.takeAction(action), node)
@@ -126,7 +126,7 @@ class mcts():
         for child in node.children.values():            
             qsa = child.totalReward / child.numVisits
 
-            # The U(s, a) calculation is wrong for now
+            # TODO: The U(s, a) calculation is wrong for now
             # it should be square root of the sum of all actions to get to the current state
             usa = explorationValue * child.state.getProbability() * math.sqrt(child.numVisits) / (1 + child.numVisits)
 

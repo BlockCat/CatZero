@@ -91,20 +91,10 @@ class TicTacToeState(MctsState):
             else:  # Other player has won
                 self.reward = -1
         else:
-            # TODO evaluate using model
 
-            colour_plane = np.repeat(0 if self.player is Player.Cross else 1, 9).reshape((3, 3))
-            current_planes = self.toNumpyArray()
-
-            if prev is None or len(prev) == 0:
-                prev_planes = [np.repeat(0, 9).reshape((3, 3)), np.repeat(0, 9).reshape((3, 3))]
-            else:
-                prev_planes = prev[0].toNumpyArray()
-
-            input = np.array([[current_planes[0], current_planes[1], prev_planes[0], prev_planes[1], colour_plane]])
-
-            result = self.model.predict(input)
-            action_probs = result[0].reshape((3,3))
+            input = self.get_neural_input(prev)
+            result = self.model.predict(np.array([input]))
+            action_probs = result[0].reshape((3,3)) +  np.random.dirichlet(np.repeat(0.3, 3), 3)
 
             for y in range(3):
                 for x in range(3):
@@ -113,12 +103,10 @@ class TicTacToeState(MctsState):
 
             self.reward = result[1][0, 0]
 
-    def getPossibleActions(self) -> List[TicTacToeAction]:  # Returns an iterable of all actions which can be taken from this state\
+    def get_possible_actions(self) -> List[TicTacToeAction]:  # Returns an iterable of all actions which can be taken from this state\
         if self.isTerminal():
             return []
         else:
-            # TODO
-            # Return all empty spaces
             return self.actions
 
     def takeAction(self, action: TicTacToeAction):  # Returns the state which results from taking action action
@@ -160,25 +148,36 @@ class TicTacToeState(MctsState):
         return self.board[0, 0] == self.board[1, 1] == self.board[2, 2] and self.board[1, 1] is not Player.Empty
 
     def checkDiagRightLeft(self) -> bool:
-        return self.board[0, 2] == self.board[1, 1] == self.board[0, 2] and self.board[1, 1] is not Player.Empty
+        return self.board[0, 2] == self.board[1, 1] == self.board[2, 0] and self.board[1, 1] is not Player.Empty
 
-    def getReward(self):  # Returns the reward for this state (predicted using neural network)
+    def get_reward(self):  # Returns the reward for this state (predicted using neural network)
         return self.reward
 
     # Returns the probability of a parent state going into this state (predicted using neural network)
     def getProbability(self):
         return self.probability
 
-    def getWinner(self) -> Player:
+    def get_winner(self) -> Player:
         return self.winner
 
-    def toNumpyArray(self):
+    def to_numpy_array(self):
         # TODO: Flatten and then reshape? Could probably be done better
         cross = np.fromiter((1 if x is Player.Cross else 0 for x in self.board.flatten()), dtype=np.int8).reshape(
             (3, 3))
         circle = np.fromiter((1 if x is Player.Circle else 0 for x in self.board.flatten()), dtype=np.int8).reshape(
             (3, 3))
         return [cross, circle]
+
+    def get_neural_input(self, prev: List['TicTacToeState']):
+        colour_plane = np.repeat(0 if self.player is Player.Cross else 1, 9).reshape((3, 3))
+        current_planes = self.to_numpy_array()
+
+        if prev is None or len(prev) == 0:
+            prev_planes = [np.repeat(0, 9).reshape((3, 3)), np.repeat(0, 9).reshape((3, 3))]
+        else:
+            prev_planes = prev[-1].to_numpy_array()
+
+        return np.array([current_planes[0], current_planes[1], prev_planes[0], prev_planes[1], colour_plane])
 
     def pretty_print(self):
         print("┌───┐")

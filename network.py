@@ -46,6 +46,6 @@ def create_model(input: Model, policy_factory: Callable[[Model], Model]) -> Mode
 
     model.compile(optimizer="rmsprop",
                   loss= {"policy_h": "binary_crossentropy", "value_h": "binary_crossentropy"},
-                  loss_weights={"policy_h": 0.2, "value_h": 0.2})
+                  loss_weights=[0.2, 0.2])
 
     return model
