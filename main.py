@@ -11,15 +11,12 @@
 # retrieve mcts in rust
 # Do best move (and store state and move selected)
 # once end go back and learn
-import tensorflow as tf
 import numpy as np
-import random
 import os.path
 import alphazero
 from keras.models import load_model
 from tictactoe import Player, TicTacToeState, TicTacToeAction, create_model
-from mcts import mcts
-
+import mcts
 print("Hello world")
 
 # XO_
@@ -53,6 +50,41 @@ print("Hello world")
 # print("Value")
 # print(result[1][0,0])
 
+def playable(model):
+    current = TicTacToeState(Player.Cross, model, 0)
+    searcher = mcts.mcts(iterationLimit=100)
+
+    history = []
+
+    while not current.isTerminal():
+        current.pretty_print()
+        # First computer
+
+        #Evaluate position
+        current.evaluate(history)
+        best_action = searcher.search(current)
+        history.append(current)
+        current = current.takeAction(best_action)
+
+        current.pretty_print()
+
+        if current.isTerminal():
+            break
+
+        entered = input("enter: x,y: ").split(',')
+        x = int(entered[0])
+        y = int(entered[1])
+
+        current.evaluate(history)
+        player_action = TicTacToeAction(x, y, 1)
+        history.append(current)
+        current = current.takeAction(player_action)
+
+    current.evaluate(history)
+    current.pretty_print()
+    print("Played match, winner: {}".format(current.get_winner()))
+
+
 def test1(model):
 
     catzero = alphazero.CatZero(iterationLimit=100, model=model)
@@ -81,11 +113,7 @@ def test2(model):
             positions.append(states[j][0].get_neural_input(history))
             history.append(states[j][0])
 
-        def create_moves(a: TicTacToeAction):
-            probs = np.zeros((3, 3))
-            probs[a.y, a.x] = 1
-            return probs.flatten()
-        probabilities = [create_moves(b) for (a, b) in states]
+        probabilities = np.array([np.array(a.get_action_probs()) for (a, b) in states])
 
         if terminal.get_winner() is Player.Cross:
             reward = 1
@@ -107,6 +135,7 @@ if os.path.isfile("trained_model.h5"):
 else:
     model = create_model()
 
-test1(model)
-for i in range(100):
-    test2(model)
+#test1(model)
+playable(model)
+#for i in range(100):
+#     test2(model)

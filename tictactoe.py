@@ -7,6 +7,7 @@ from keras.models import Model
 from keras.layers import Input
 from keras.layers.convolutional import Convolution2D
 from keras.layers import BatchNormalization, Activation, Add, Dense, Flatten
+from keras.regularizers import l2
 from mcts import MctsAction, MctsState
 
 
@@ -19,9 +20,9 @@ def create_input():
     return Input(batch_shape=(None, 5, 3, 3))
 
 
-def create_policy(model):
+def create_policy(model, reg_constant):
     model = Convolution2D(2, 1, padding="same",
-                          data_format="channels_first")(model)
+                          data_format="channels_first", kernel_regularizer=l2(reg_constant))(model)
     model = BatchNormalization()(model)
     model = Activation('relu')(model)
     model = Flatten()(model)
@@ -61,6 +62,7 @@ class TicTacToeState(MctsState):
         self.probability = probability
         self.reward = 0
         self.actions = []
+        self.action_probs = []
         self.winner = None
         # If no board is provided, create a new board
         if board is None:
@@ -94,7 +96,10 @@ class TicTacToeState(MctsState):
 
             input = self.get_neural_input(prev)
             result = self.model.predict(np.array([input]))
-            action_probs = result[0].reshape((3,3)) +  np.random.dirichlet(np.repeat(0.3, 3), 3)
+            self.action_probs = result[0].reshape((3,3))
+            action_probs = self.action_probs + np.random.dirichlet(np.repeat(0.3, 3), 3)
+
+            # print(self.action_probs)
 
             for y in range(3):
                 for x in range(3):
@@ -102,6 +107,9 @@ class TicTacToeState(MctsState):
                         self.actions.append(TicTacToeAction(x, y, action_probs[y, x]))
 
             self.reward = result[1][0, 0]
+
+    def get_action_probs(self):
+        return self.action_probs.flatten()
 
     def get_possible_actions(self) -> List[TicTacToeAction]:  # Returns an iterable of all actions which can be taken from this state\
         if self.isTerminal():

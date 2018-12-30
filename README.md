@@ -73,7 +73,8 @@ Illegal moves are masked out of course.
 - [A Simple Alpha(Go)Zero Tutorial](https://web.stanford.edu/~surag/posts/alphazero.html)
 - [Mastering the Game of Go without Human Knowledge](http://discovery.ucl.ac.uk/10045895/1/agz_unformatted_nature.pdf) for the neural network structure
 - [Deepmind AlphaZero - Mastering Games Without Human Knowledge](https://www.youtube.com/watch?v=Wujy7OzvdJk)
-
+- [AlphaZero- How and Why it works](http://tim.hibal.org/blog/alpha-zero-how-and-why-it-works/)
+- [A general reinforcement learning algorithm that masters chess, shogi and Go through self-play (preprint)](file://zino-nas/home/downloads/alphazero_preprint.pdf)
 ## Other things
 * Reminder to be able to save and load the neural network so we can continue from where we quit.
 * Might be nice to collect a whole bunch of samples to train. So play multiple times with the same network and then improve? Test this out.

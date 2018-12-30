@@ -4,12 +4,22 @@ from mcts import mcts, MctsAction, MctsState
 from keras.models import Model
 
 
+class NeuralAgent():
+    def __init__(self, model: Model, iterationLimit=None, timeLimit=None):
+        self.model = model
+        self.__iterationLimit = iterationLimit
+        self.__timeLimit = timeLimit
+
 class CatZero():
     def __init__(self, model: Model, iterationLimit=None, timeLimit=None):
         self.__iterationLimit = iterationLimit
         self.__timeLimit = timeLimit
         self.__states: List[Tuple[MctsState, MctsAction]] = []
         self.__model = model
+
+
+    def play(self, current, agent_1, agent_2):
+        self.play(current)
 
     def play(self, current):
         searcher = mcts(iterationLimit=self.__iterationLimit, timeLimit=self.__timeLimit)
@@ -42,7 +52,7 @@ class CatZero():
         print(positions.shape)
         print(probabilities.shape)
 
-        self.__model.fit(positions, [probabilities, values], epochs=3, batch_size=3)
+        self.__model.fit(positions, [probabilities, values], epochs=1, batch_size=3)
         print("Finished learning game")
 
     def get_states(self) -> List[Tuple[MctsState, MctsAction]]:

@@ -41,6 +41,8 @@ class MctsAction(ABC):
 class MctsState(ABC):
     def evaluate(self, prev: List['MctsState']): # When the state is created for the first time, store it and evaluate
         pass
+    def get_action_probs(self) -> List[float]:
+        pass
     def get_possible_actions(self) -> List[MctsAction]: # Returns an iterable of all actions which can be taken from this state
         pass
     def takeAction(self, action: List[MctsAction]) -> 'MctsState': # Returns the state which results from taking action action
@@ -120,21 +122,31 @@ class mcts():
             node = node.parent
 
     # Change this to paper impl
-    def getBestChild(self, node, explorationValue) -> treeNode:
+    def getBestChild(self, node: treeNode, explorationValue) -> treeNode:
         bestValue = float("-inf")
-        bestNodes = []
+        bestNode = None
         for child in node.children.values():            
             qsa = child.totalReward / child.numVisits
 
             # TODO: The U(s, a) calculation is wrong for now
             # it should be square root of the sum of all actions to get to the current state
-            usa = explorationValue * child.state.getProbability() * math.sqrt(child.numVisits) / (1 + child.numVisits)
+            usa = explorationValue * child.state.getProbability() * math.sqrt(node.numVisits) / (1 + child.numVisits)
 
             nodeValue = qsa + usa
             if nodeValue >= bestValue:
                 bestValue = nodeValue
-                bestNodes.append(child)
-        return random.choice(bestNodes)
+                bestNode = child
+
+        if bestNode is None:
+            print("error:")
+            print(node.isTerminal)
+            print(node.isFullyExpanded)
+            print(len(node.children))
+            print([x.totalReward / x.numVisits for x in node.children.values()])
+            print([(child.state.getProbability(), math.sqrt(node.numVisits) / (1 + child.numVisits)) for child in node.children.values()])
+            print([child.state.getProbability() * math.sqrt(node.numVisits) / (1 + child.numVisits) for child in node.children.values()])
+
+        return bestNode
 
     def getAction(self, root, bestChild):
         for action, node in root.children.items():
