@@ -51,7 +51,7 @@ print("Hello world")
 # print(result[1][0,0])
 
 def playable(model):
-    current = TicTacToeState(Player.Cross, model, 0)
+    current = TicTacToeState(Player.Cross, Player.Cross, model, 0)
     searcher = mcts.mcts(iterationLimit=100)
 
     history = []
@@ -88,7 +88,7 @@ def playable(model):
 def test1(model):
 
     catzero = alphazero.CatZero(iterationLimit=100, model=model)
-    terminal = catzero.play(TicTacToeState(Player.Cross, model, 0))
+    terminal = catzero.play(TicTacToeState(Player.Cross, Player.Cross, model, 0))
 
     for (a, b) in catzero.get_states():
         a.pretty_print()
@@ -99,7 +99,7 @@ def test2(model):
 
     for i in range(10):
         # Play a simulation
-        terminal = catzero.play(TicTacToeState(Player.Cross, model, 0))
+        terminal = catzero.play(TicTacToeState(Player.Cross, Player.Cross, model, 0))
         terminal.pretty_print()
 
         print("Played match, winner: {}".format(terminal.get_winner()))
@@ -137,5 +137,5 @@ else:
 
 #test1(model)
 playable(model)
-#for i in range(100):
-#     test2(model)
+for i in range(300):
+     test2(model)

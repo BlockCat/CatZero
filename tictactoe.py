@@ -56,7 +56,8 @@ class TicTacToeAction(MctsAction):
 
 # Represents the game and game logic, oh boi i miss rust already why did python not have traits/interfaces again?
 class TicTacToeState(MctsState):
-    def __init__(self, player: Player, model, probability: float, board=None):
+    def __init__(self, search: Player, player: Player, model, probability: float, board=None):
+        self.search = search
         self.player = player
         self.model = model
         self.probability = probability
@@ -88,7 +89,7 @@ class TicTacToeState(MctsState):
 
             if self.winner is None:  # It's a draw :(
                 self.reward = 0
-            elif self.winner == self.player:  # Current player has won
+            elif self.winner == self.search:  # Current player has won
                 self.reward = 1
             else:  # Other player has won
                 self.reward = -1
@@ -124,7 +125,7 @@ class TicTacToeState(MctsState):
             next_player = Player.Cross
         else:
             next_player = Player.Circle
-        return TicTacToeState(next_player, self.model, action.probability, new_board)
+        return TicTacToeState(self.search, next_player, self.model, action.probability, new_board)
 
     def isTerminal(self):  # Returns whether this state is a terminal state
         # Check if all are filled
