@@ -1,5 +1,5 @@
 use crate::model::CatZeroModel;
-use crate::game::{GameAction, GameState};
+use crate::game::{GameAction, GameState, Player};
 use std::time::{Duration, SystemTime};
 use hashbrown::HashMap;
 use hashbrown::HashSet;
@@ -13,16 +13,22 @@ pub struct MCTS<'a, A, B> where A: GameState<B>, B: GameAction {
 }
 
 impl<'a, A, B> MCTS<'a, A, B> where A: GameState<B>, B: GameAction  {
-    pub fn new(model: &'a CatZeroModel<'a>) -> Self {
-        panic!()
+    pub fn new(model: &'a CatZeroModel<'a>) -> Self {        
+        MCTS {
+            model,
+            time_limit: None,
+            iter_limit: None,
+            phantom: std::marker::PhantomData::<A>,
+            phantom_2: std::marker::PhantomData::<B>,
+        }
     }
 
-    pub fn time_limit(&mut self, milli_seconds: Option<u32>) -> &mut Self {
+    pub fn time_limit(mut self, milli_seconds: Option<u32>) -> Self {
         self.time_limit = milli_seconds;
         self
     }
 
-    pub fn iter_limit(&mut self, iter_limit: Option<u32>) -> &mut Self {
+    pub fn iter_limit(mut self, iter_limit: Option<u32>) -> Self {
         self.iter_limit = iter_limit;
         self
     }
@@ -53,6 +59,7 @@ impl<'a, A, B> MCTS<'a, A, B> where A: GameState<B>, B: GameAction  {
 }
 
 struct MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
+    search_player: Player,
     model: &'a CatZeroModel<'a>,
     nodes: Vec<MCNode<A, B>>,
     //states: HashSet<A, u32>
@@ -61,8 +68,9 @@ struct MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
 impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
 
     fn new(root_state: A, model: &'a CatZeroModel<'a>) -> Self {
-        let root_node = MCNode::evaluate(root_state, None, model, vec!());        
+        let root_node: MCNode<A, B> = MCNode::evaluate(root_state, None, model, vec!());        
         MCTree {
+            search_player: root_node.state.current_player(),
             model,
             nodes: vec!(root_node),
       //      states: HashSet::new()
@@ -72,23 +80,33 @@ impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
         // Select node
         let selected_node = self.select_node();
         // Get reward
-        let reward = selected_node.reward();
+        let reward = self.nodes[selected_node].reward();
         // Backpropagate
+        let mut node = selected_node;
+        
+        while let Some((parent_action, parent)) = self.nodes[node].parent.clone() {            
+            self.nodes[parent].visit_count += 1;
+            let mcaction = &mut self.nodes[parent].actions.get_mut(&parent_action).unwrap();
+            mcaction.action_count += 1;
+            mcaction.action_value += reward;
+
+            node = parent;
+        }
 
     }
 
-    fn select_node(&mut self) -> &MCNode<A, B> {
+    fn select_node(&mut self) -> usize {
         let mut node_id = 0;
 
         while !self.nodes[node_id].state.is_terminal() {
             if let Some(action) = self.find_free_action(node_id) {
                 let expanded_id = self.expand(node_id, action);
-                return &self.nodes[expanded_id];
+                return expanded_id;
             } else {
                 node_id = self.best_child(node_id, 1f32).1;
             }
         }
-        return &self.nodes[node_id];        
+        return node_id
     }
 
     fn best_child(&self, node_id: usize, exploration_value: f32) -> (&B, usize) {
@@ -135,15 +153,13 @@ impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
         self.nodes[node_id].actions.get_mut(&action).unwrap().child_id = Some(self.nodes.len());
 
          // Take this action and get the next state
-        let next_state = self.nodes[node_id].state.take_action(action);
-       
-        
-        let next_node = MCNode::evaluate(next_state, Some(node_id), &self.model, {
+        let next_state = self.nodes[node_id].state.take_action(action.clone());
+        let next_node = MCNode::evaluate(next_state, Some((action, node_id)), &self.model, {
             // Build the game history needed for evaluation
             let mut history = Vec::new();
             let mut parent = node_id; //Start at node
-            while let Some(e) = self.nodes[parent].parent {
-                parent = e; // Go to my parent
+            while let Some((_, e)) = &self.nodes[parent].parent {
+                parent = *e; // Go to my parent
                 history.push(parent);
             }   
             history.into_iter().map(|id| {
@@ -161,7 +177,7 @@ impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
 struct MCAction{child_id: Option<usize>, action_count: u32, action_value: f32, probability: f32}
 struct MCNode<A, B> where A: GameState<B>, B: GameAction {
     state: A,
-    parent: Option<usize>,
+    parent: Option<(B, usize)>,
     win_factor: f32,
     visit_count: u32,
     actions: HashMap<B, MCAction>
@@ -179,12 +195,13 @@ impl<A, B> MCNode<A, B> where A: GameState<B>, B: GameAction {
 
 impl<A, B> MCNode<A, B> where A: GameState<B>, B: GameAction {    
 
-    fn evaluate(state: A, parent: Option<usize>, model: &CatZeroModel, history: Vec<&A>) -> Self {
+    fn evaluate(state: A, parent: Option<(B, usize)>, model: &CatZeroModel, history: Vec<&A>) -> Self {
         
-        let (win_factor, action_probs) = model.evaluate(state.into_tensor(history)).unwrap();
-        
+        let (win_factor, action_probs) = model.evaluate(state.into_tensor(history))
+            .expect("Could not evaluate tensor");
+
         let possible_actions = state.possible_actions();
-        let action_probs = A::into_actions(action_probs).into_iter() 
+        let action_probs: HashMap<_, _> = A::into_actions(action_probs).into_iter() 
             .filter(|(_, action)| possible_actions.contains(action) ) // Keep only possible probabilities
             .map(|(prob, action)| {
                 (action, MCAction {
@@ -194,7 +211,7 @@ impl<A, B> MCNode<A, B> where A: GameState<B>, B: GameAction {
                     probability: prob
                 })
             }).collect();
-        
+
         MCNode {
             state, parent, win_factor,
             visit_count: 0,

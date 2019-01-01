@@ -30,11 +30,13 @@ impl<'a> CatZeroModel<'a> {
 
     pub fn evaluate(&self, tensor: Vec<Vec<Vec<u8>>>) -> PyResult<(f32, Vec<Vec<Vec<f32>>>)> {
         
-        //self.module.call(*self.python, "evaluate", (path_buf.to_str().unwrap() , &self.model), None)?;
+        let pyres = self.module.call(*self.python, "evaluate", (tensor, &self.model, self.output_shape), None)
+                .expect("Could not call python module: 'evaluate'");
+        
+        let (value, tensor): (f32, Vec<Vec<Vec<f32>>>) = pyres.extract(*self.python)
+                .expect("Could not extract rust types from python");
 
-        //Ok(())   
-
-        panic!()
+        Ok((value, tensor))
     }
 
     pub fn load(python: &'a Python, path: &str, input_shape: (u32, u32, u32), output_shape: (u32, u32, u32)) -> PyResult<CatZeroModel<'a>> {
@@ -69,12 +71,14 @@ impl<'a> CatZeroModel<'a> {
         let module = PyModule::new(*python, "CatZero")?;
         
         module.add(*python, "bb", python.import("builtins")?)?;
+        module.add(*python, "np", python.import("numpy")?)?;
 
         py_import!(module, python, from keras."models" import "Model", "load_model");
         py_import!(module, python, from keras."layers" import "Input", "BatchNormalization", "Activation", "Add", "Dense", "Convolution2D", "Flatten");
         py_import!(module, python, from keras."optimizers" import "SGD");
         py_import!(module, python, from keras."regularizers" import "l2");
         
+        module.add(*python, "keras", keras)?;
 
         python.run(main_str, Some(&module.dict(*python)), None)?;
 

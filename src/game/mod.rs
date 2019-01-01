@@ -1,4 +1,4 @@
-mod tictactoe;
+pub mod tictactoe;
 
 use hashbrown::HashSet;
 
@@ -6,6 +6,40 @@ use hashbrown::HashSet;
 pub enum Player {
     Player1, Player2
 }
+
+impl Player {
+
+    fn other(&self) -> Player {
+        match self {
+            Player::Player1 => Player::Player2,
+            Player::Player2 => Player::Player1
+        }
+    }
+}
+
+impl Default for Player {
+    fn default() -> Self {
+        Player::Player1
+    }
+}
+
+impl From<&Player> for u8 {
+    fn from(ob: &Player) -> u8 {
+        match ob {
+            Player::Player1 => 0,
+            Player::Player2 => 1
+        }
+    }
+}
+impl From<Player> for u8 {
+    fn from(ob: Player) -> u8 {
+        match ob {
+            Player::Player1 => 0,
+            Player::Player2 => 1
+        }
+    }
+}
+
 
 pub trait GameState<A>: Eq + std::hash::Hash + Into<Vec<Vec<Vec<u8>>>> where A: GameAction {
     fn is_terminal(&self) -> bool;
@@ -17,14 +51,13 @@ pub trait GameState<A>: Eq + std::hash::Hash + Into<Vec<Vec<Vec<u8>>>> where A: 
     fn into_actions(Vec<Vec<Vec<f32>>>) -> Vec<(f32, A)>;
 }
 
-pub trait GameAction: Eq + std::hash::Hash + Clone {
+pub trait GameAction: Eq + std::hash::Hash + Clone + std::fmt::Debug {
 
 }
 
-pub trait Game<A, S> where A: GameAction, S:GameState<A>  {
-    fn new() -> Self;    
-    fn get_state(&self) -> &S;
-    
+pub trait Game<A, S, C, D> where A: GameAction, S:GameState<A>, C: Agent<A, S>, D: Agent<A, S>  {
+    fn new(player1: C, player2: D) -> Self;    
+    fn start(&self);    
 }
 
 pub trait Agent<A, S> where A:GameAction, S:GameState<A> {

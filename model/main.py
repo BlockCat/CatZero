@@ -55,6 +55,14 @@ def policy_head(model, reg_constant, flatten_size):
     model = Dense(flatten_size)(model)
     return Activation("softmax", name="policy_h")(model)
 
+def evaluate(tensor, model: Model, output_shape):     
+    result = model.predict(np.array([tensor]))    
+    action_probs = result[0].reshape(output_shape).tolist()
+
+    reward = result[1][0, 0]
+    
+    return (reward, action_probs)
+
 def save_model(path, model: Model):
     model.save(path)
 
