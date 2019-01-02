@@ -4,19 +4,27 @@ The reason I didn't call it AlphaZero is that I don't know if google would appre
 
 This project will probably end up in the dust, so excuses to any (if any) who comes across this project.
  
+
 ## What it will do:
 1. Provide rules (somehow)
 2. Play along these rules and learn.
 3. Provide an API to play against
 
+## Requirements
+- Python 3.6+
+- Tensorflow
+- Keras
+- Numpy
+
 ## In progress
-* Implement a monte carlo tree search algorithm
-  
+* Do learning
+
 ## Todo
 * Fix the python model
 * Train the neural network with the game
-## Finished
 
+## Finished
+* Implement a monte carlo tree search algorithm
 
 ## How AlphaZero works (globally)
 How alpha zero works with a resnet split into two ends: Policy and Value networks.
