@@ -29,14 +29,39 @@ impl TicTacToeState {
         }).collect();
         vec!(current_cross_board, current_circle_board)
     }
+
+    fn get_winner(&self) -> Option<Player> {
+        // Check rows
+        for r in 0..3 {            
+            if self.board[r].iter().all(|s| *s == Some(Player::Player1)) {
+                return Some(Player::Player1);
+            }
+            if self.board[r].iter().all(|s| *s == Some(Player::Player2)) {
+                return Some(Player::Player2);
+            }
+        }
+
+        for c in 0..3 {
+            let col = [&self.board[0][c], &self.board[1][c], &self.board[2][c]];
+            if col.iter().all(|s| **s == Some(Player::Player1)) {
+                return Some(Player::Player1);
+            }
+
+            if col.iter().all(|s| **s == Some(Player::Player2)) {
+                return Some(Player::Player2);
+            }
+        }
+
+        None
+    }
 }
 
 impl GameState<TicTacToeAction> for TicTacToeState {
     fn is_terminal(&self) -> bool {
-        self.board.iter().flatten().filter(|cell| match cell {
+        match self.get_winner() {
             Some(_) => true,
-            None => false
-        }).count() == 0
+            None => self.board.iter().flatten().filter(|cell| cell.is_none()).count() == 0
+        }        
     }
 
     fn current_player(&self) -> Player {
@@ -57,14 +82,25 @@ impl GameState<TicTacToeAction> for TicTacToeState {
 
     fn take_action(&self, action: TicTacToeAction) -> Self {
         let mut next_state = self.clone();
+
         next_state.current_player = self.current_player.other();
         next_state.board[action.y][action.x] = Some(self.current_player());
 
         next_state
     }
 
-    fn terminal_reward(&self) -> f32 {
-        0f32
+    fn terminal_reward(&self, searched_player: Player) -> f32 {
+        let winner = self.get_winner();
+
+        if let Some(winner) = winner {
+            if winner == searched_player {
+                1f32
+            } else {
+                -1f32
+            }
+        } else {
+            0f32
+        }
     }
 
     fn into_tensor(&self, history: Vec<&Self>) -> Vec<Vec<Vec<u8>>> {
@@ -83,6 +119,7 @@ impl GameState<TicTacToeAction> for TicTacToeState {
     }
 
     fn into_actions(probs: Vec<Vec<Vec<f32>>>) -> Vec<(f32, TicTacToeAction)> {
+        // TODO: Add Dirichlet noise here
         probs[0].iter().enumerate().map(|(y, row)| {
             row.iter().enumerate().map(move |(x, prob)| {
                 (*prob, TicTacToeAction {x: x, y:y})

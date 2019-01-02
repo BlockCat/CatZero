@@ -34,7 +34,7 @@ fn main() {
     // ttt.start();
 
     let def = TicTacToeState::default();
-    let mcts: MCTS<TicTacToeState, TicTacToeAction> = mcts::MCTS::new(&nn).time_limit(Some(1000));
+    let mcts: MCTS<TicTacToeState, TicTacToeAction> = mcts::MCTS::new(&nn).iter_limit(Some(100));
 
     let action = mcts.search(def);
 

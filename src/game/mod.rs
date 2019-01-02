@@ -46,7 +46,7 @@ pub trait GameState<A>: Eq + std::hash::Hash + Into<Vec<Vec<Vec<u8>>>> where A: 
     fn current_player(&self) -> Player;
     fn possible_actions(&self) -> HashSet<A>;
     fn take_action(&self, action: A) -> Self;
-    fn terminal_reward(&self) -> f32;
+    fn terminal_reward(&self, searched_player: Player) -> f32;
     fn into_tensor(&self, history: Vec<&Self>) -> Vec<Vec<Vec<u8>>>;
     fn into_actions(Vec<Vec<Vec<f32>>>) -> Vec<(f32, A)>;
 }

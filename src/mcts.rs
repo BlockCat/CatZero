@@ -80,7 +80,7 @@ impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
         // Select node
         let selected_node = self.select_node();
         // Get reward
-        let reward = self.nodes[selected_node].reward();
+        let reward = self.nodes[selected_node].reward(self.search_player.clone());
         // Backpropagate
         let mut node = selected_node;
         
@@ -112,13 +112,8 @@ impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
     fn best_child(&self, node_id: usize, exploration_value: f32) -> (&B, usize) {
         let node = &self.nodes[node_id];
 
-        let (best_child, _) = node.actions.iter()
-        .filter(|&(_, a)| { // Remove actions without a child
-            match a.child_id {
-                Some(_) => true,
-                None => false
-            }
-        })
+        let (best_child, _) = node.actions.iter()        
+        .filter(|&(_, a)| a.child_id.is_some()) // Remove actions without a child        
         .fold((None, std::f32::MIN), |acc, (a, ma)| {
             let qsa = ma.action_value / ma.action_count as f32;
             let usa = exploration_value * ma.probability * (node.visit_count as f32).sqrt() / (1f32 + ma.action_value);
@@ -140,10 +135,9 @@ impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
         let node = &self.nodes[node_id];
 
         // Find an action that has no child yet (action has not yet been done)
-        node.actions.iter().find(|(_, s)| match s.child_id {
-            Some(_) => false,
-            None => true
-        }).map(|s| s.0.clone())
+        node.actions.iter()
+            .find(|(_, s)| s.child_id.is_none())
+            .map(|s| s.0.clone())
     }
 
 
@@ -184,9 +178,9 @@ struct MCNode<A, B> where A: GameState<B>, B: GameAction {
 }
 
 impl<A, B> MCNode<A, B> where A: GameState<B>, B: GameAction {
-    fn reward(&self) -> f32 {
+    fn reward(&self, search_player: Player) -> f32 {
         if self.state.is_terminal() {
-            self.state.terminal_reward()
+            self.state.terminal_reward(search_player)
         } else {
             self.win_factor
         }
