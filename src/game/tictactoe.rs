@@ -52,6 +52,24 @@ impl TicTacToeState {
             }
         }
 
+        let diag = [&self.board[0][0],&self.board[1][1],&self.board[2][2]];
+        if diag.iter().all(|s| **s == Some(Player::Player1)) {
+            return Some(Player::Player1);
+        }
+
+        if diag.iter().all(|s| **s == Some(Player::Player2)) {
+            return Some(Player::Player2);
+        }
+
+        let diag = [&self.board[0][2],&self.board[1][1],&self.board[2][0]];
+        if diag.iter().all(|s| **s == Some(Player::Player1)) {
+            return Some(Player::Player1);
+        }
+
+        if diag.iter().all(|s| **s == Some(Player::Player2)) {
+            return Some(Player::Player2);
+        }
+
         None
     }
 }
@@ -236,9 +254,20 @@ impl<A, B> Game<TicTacToeAction, TicTacToeState, A, B> for TicTacToe<A, B> where
 pub struct PlayerAgent;
 impl Agent <TicTacToeAction, TicTacToeState> for PlayerAgent {
     fn get_action(&self, state: &TicTacToeState) -> TicTacToeAction {
-        println!("Please enter coordinations:");
+        use std::io;
 
-        panic!()
+        let mut buffer = String::new();
+        println!("Please enter coordinations: x,y");
+
+        io::stdin().read_line(&mut buffer).unwrap();
+
+        let x: usize = buffer[0..1].parse().expect("X is not an integer");
+        let y: usize = buffer[2..3].parse().expect("y is not an integer");
+
+        TicTacToeAction {
+            x: x,
+            y: y,
+        }
     }
 }
 
@@ -248,7 +277,7 @@ pub struct AlphaAgent<'a> {
 impl<'a> AlphaAgent<'a> {
     pub fn new(model: &'a CatZeroModel<'a>) -> Self {
         AlphaAgent {
-            searcher: MCTS::new(&model).iter_limit(Some(100))
+            searcher: MCTS::new(&model).time_limit(Some(3000))
         }
     }
 }

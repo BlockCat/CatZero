@@ -28,8 +28,8 @@ fn main() {
     };
     //nn.save("saved_model.h5").unwrap();
 
-    let agent1 = AlphaAgent::new(&nn);
-    let agent2 = AlphaAgent::new(&nn);
+    let agent1 = PlayerAgent;// AlphaAgent::new(&nn);
+    let agent2 = PlayerAgent;// AlphaAgent::new(&nn);
     let mut ttt = TicTacToe::new(agent1, agent2);
     ttt.do_print(true);
     let winner = ttt.start();
