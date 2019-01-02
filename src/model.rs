@@ -28,6 +28,27 @@ impl<'a> CatZeroModel<'a> {
         Ok(CatZeroModel{ python, module, model, output_shape })
     }
 
+    fn create_module(python: &Python) -> PyResult<PyModule> {
+        let main_str = include_str!("../model/main.py");
+        let keras = python.import("keras")?;
+
+        let module = PyModule::new(*python, "CatZero")?;
+        
+        module.add(*python, "bb", python.import("builtins")?)?;
+        module.add(*python, "np", python.import("numpy")?)?;
+
+        py_import!(module, python, from keras."models" import "Model", "load_model");
+        py_import!(module, python, from keras."layers" import "Input", "BatchNormalization", "Activation", "Add", "Dense", "Convolution2D", "Flatten");
+        py_import!(module, python, from keras."optimizers" import "SGD");
+        py_import!(module, python, from keras."regularizers" import "l2");
+        
+        module.add(*python, "keras", keras)?;
+
+        python.run(main_str, Some(&module.dict(*python)), None)?;
+
+        Ok(module)
+    }
+
     pub fn evaluate(&self, tensor: Tensor<u8>) -> PyResult<(f32, Tensor<f32>)> {
         
         let pyres = self.module.call(*self.python, "evaluate", (tensor, &self.model, self.output_shape), None)
@@ -68,27 +89,5 @@ impl<'a> CatZeroModel<'a> {
         self.module.call(*self.python, "save_model", (path_buf.to_str().unwrap() , &self.model), None)?;
 
         Ok(())        
-    }
-
-
-    fn create_module(python: &Python) -> PyResult<PyModule> {
-        let main_str = include_str!("../model/main.py");
-        let keras = python.import("keras")?;
-
-        let module = PyModule::new(*python, "CatZero")?;
-        
-        module.add(*python, "bb", python.import("builtins")?)?;
-        module.add(*python, "np", python.import("numpy")?)?;
-
-        py_import!(module, python, from keras."models" import "Model", "load_model");
-        py_import!(module, python, from keras."layers" import "Input", "BatchNormalization", "Activation", "Add", "Dense", "Convolution2D", "Flatten");
-        py_import!(module, python, from keras."optimizers" import "SGD");
-        py_import!(module, python, from keras."regularizers" import "l2");
-        
-        module.add(*python, "keras", keras)?;
-
-        python.run(main_str, Some(&module.dict(*python)), None)?;
-
-        Ok(module)
     }
 }

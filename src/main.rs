@@ -11,7 +11,6 @@ mod game;
 use pyenv::PyEnv;
 use game::tictactoe::{TicTacToe, AlphaAgent, PlayerAgent, TicTacToeState, TicTacToeAction};
 use game::Game;
-use mcts::MCTS;
 
 fn main() {
     let mut env = PyEnv::new();

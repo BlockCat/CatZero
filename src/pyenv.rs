@@ -1,5 +1,5 @@
 
-use cpython::{Python, PyDict, PyResult, GILGuard, NoArgs};
+use cpython::{Python, GILGuard};
 
 pub struct PyEnv<'a> {
     gil: GILGuard, 

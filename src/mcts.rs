@@ -57,6 +57,19 @@ impl<'a, A, B> MCTS<'a, A, B> where A: GameState<B>, B: GameAction  {
     }
 }
 
+#[derive(PartialEq, PartialOrd)]
+struct FloatWrapper(f32);
+
+impl Eq for FloatWrapper {}
+impl Ord for FloatWrapper {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {       
+        match self.0.partial_cmp(&other.0) {
+            None => panic!("A float could not be compared"),
+            Some(or) => or
+        }
+    }
+}
+
 struct MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
     search_player: Player,
     model: &'a CatZeroModel<'a>,
@@ -72,7 +85,6 @@ impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
             search_player: root_node.state.current_player(),
             model,
             nodes: vec!(root_node),
-      //      states: HashSet::new()
         }
     }
     fn execute_round(&mut self) {
@@ -111,21 +123,13 @@ impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
     fn best_child(&self, node_id: usize, exploration_value: f32) -> (&B, usize) {
         let node = &self.nodes[node_id];
 
-        let (best_child, _) = node.actions.iter()        
-        .filter(|&(_, a)| a.child_id.is_some()) // Remove actions without a child        
-        .fold((None, std::f32::MIN), |acc, (a, ma)| {
-            let qsa = ma.action_value / ma.action_count as f32;
-            let usa = exploration_value * ma.probability * (node.visit_count as f32).sqrt() / (1f32 + ma.action_value);
-            let value = qsa + usa;
-
-            if value > acc.1 {
-                (Some((a, ma)), value)
-            } else {
-                acc
-            }            
-        });
-
-        let (best_action, best_child) = best_child.unwrap();
+        let (best_action, best_child) = node.actions.iter()
+            .filter(|a| a.1.child_id.is_some())
+            .max_by_key(|(_, ma)| {
+                let qsa = ma.action_value / ma.action_count as f32;
+                let usa = exploration_value * ma.probability * (node.visit_count as f32).sqrt() / (1f32 + ma.action_value);
+                FloatWrapper(qsa + usa)                
+            }).unwrap();
 
         (best_action, best_child.child_id.unwrap())
     }
@@ -139,31 +143,28 @@ impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
             .map(|s| s.0.clone())
     }
 
+    fn history(&self, node_id: usize) -> Vec<&A> {
+        let mut history = Vec::new();
+        let mut parent = node_id; //Start at node
+        while let Some((_, e)) = &self.nodes[parent].parent {
+            parent = *e; // Go to my parent
+            history.push(parent);
+        }   
+        history.into_iter().map(|id| {
+            &self.nodes[id].state
+        }).collect()
+    }
 
     fn expand(&mut self, node_id: usize, action: B) -> usize {                    
-        
+        let next_node_id = self.nodes.len();
         // Set child id of node.
-        self.nodes[node_id].actions.get_mut(&action).unwrap().child_id = Some(self.nodes.len());
+        self.nodes[node_id].actions.get_mut(&action).unwrap().child_id = Some(next_node_id);
 
          // Take this action and get the next state
         let next_state = self.nodes[node_id].state.take_action(action.clone());
-        let next_node = MCNode::evaluate(next_state, Some((action, node_id)), &self.model, {
-            // Build the game history needed for evaluation
-            let mut history = Vec::new();
-            let mut parent = node_id; //Start at node
-            while let Some((_, e)) = &self.nodes[parent].parent {
-                parent = *e; // Go to my parent
-                history.push(parent);
-            }   
-            history.into_iter().map(|id| {
-                &self.nodes[id].state
-            }).collect()
-        });
-        
-
-        self.nodes.push(next_node);        
-
-        self.nodes.len() - 1
+        let next_node = MCNode::evaluate(next_state, Some((action, node_id)), &self.model, self.history(node_id));
+        self.nodes.push(next_node);
+        next_node_id
     }
 }
 
@@ -196,14 +197,13 @@ impl<A, B> MCNode<A, B> where A: GameState<B>, B: GameAction {
         let possible_actions = state.possible_actions();
         let action_probs: HashMap<_, _> = A::into_actions(action_probs).into_iter() 
             .filter(|(_, action)| possible_actions.contains(action) ) // Keep only possible probabilities
-            .map(|(prob, action)| {
+            .map(|(prob, action)| 
                 (action, MCAction {
                     child_id: None,
                     action_count: 0,
                     action_value: 0f32,
                     probability: prob
-                })
-            }).collect();
+                })).collect();
 
         MCNode {
             state, parent, win_factor,
