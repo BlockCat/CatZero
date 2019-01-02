@@ -28,17 +28,20 @@ fn main() {
     };
     //nn.save("saved_model.h5").unwrap();
 
-    // let agent1 = PlayerAgent;
-    // let agent2 = PlayerAgent;
-    // let ttt = TicTacToe::new(agent1, agent2);
-    // ttt.start();
+    let agent1 = AlphaAgent::new(&nn);
+    let agent2 = AlphaAgent::new(&nn);
+    let mut ttt = TicTacToe::new(agent1, agent2);
+    ttt.do_print(true);
+    let winner = ttt.start();
 
-    let def = TicTacToeState::default();
+    println!("{:?}", winner);
+
+    /*let def = TicTacToeState::default();
     let mcts: MCTS<TicTacToeState, TicTacToeAction> = mcts::MCTS::new(&nn).iter_limit(Some(100));
 
     let action = mcts.search(def);
 
-    println!("Best action: {:?}", action);
+    println!("Best action: {:?}", action);*/
 
     //let result: String = nn.call(python, "create_model", cpython::NoArgs, None).unwrap().extract(python).unwrap();
 

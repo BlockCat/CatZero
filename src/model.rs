@@ -1,5 +1,4 @@
 use cpython::{Python, PyObject, PyModule, PyResult};
-use crate::game::{GameState, GameAction};
 
 macro_rules! py_import {
     ($module:ident, $python:ident, from $modu:ident.$path:tt import $($name:tt), *) => {
@@ -83,15 +82,5 @@ impl<'a> CatZeroModel<'a> {
         python.run(main_str, Some(&module.dict(*python)), None)?;
 
         Ok(module)
-    }
-}
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn module_loading() {
-     //   let m = create_module(python: &Python)
     }
 }

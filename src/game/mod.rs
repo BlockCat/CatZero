@@ -56,8 +56,10 @@ pub trait GameAction: Eq + std::hash::Hash + Clone + std::fmt::Debug {
 }
 
 pub trait Game<A, S, C, D> where A: GameAction, S:GameState<A>, C: Agent<A, S>, D: Agent<A, S>  {
-    fn new(player1: C, player2: D) -> Self;    
-    fn start(&self);    
+    fn new(player1: C, player2: D) -> Self;
+    
+    fn start(&mut self) -> Option<Player>;
+
 }
 
 pub trait Agent<A, S> where A:GameAction, S:GameState<A> {

@@ -2,7 +2,6 @@ use crate::model::CatZeroModel;
 use crate::game::{GameAction, GameState, Player};
 use std::time::{Duration, SystemTime};
 use hashbrown::HashMap;
-use hashbrown::HashSet;
 
 pub struct MCTS<'a, A, B> where A: GameState<B>, B: GameAction {
     model: &'a CatZeroModel<'a>,

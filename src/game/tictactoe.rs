@@ -159,21 +159,85 @@ impl GameAction for TicTacToeAction {
 pub struct TicTacToe<A, B> where A: Agent<TicTacToeAction, TicTacToeState>, B: Agent<TicTacToeAction, TicTacToeState> {
     player1: A,
     player2: B,
+    current_state: TicTacToeState,
+    do_print: bool,
 }
 
-impl<A, B> Game<TicTacToeAction, TicTacToeState, A, B> for TicTacToe<A, B> where A: Agent<TicTacToeAction, TicTacToeState>, B: Agent<TicTacToeAction, TicTacToeState>  {
-    fn new(player1: A, player2: B) -> Self {
-        TicTacToe { player1, player2 }
+impl<A, B> TicTacToe<A, B> where A: Agent<TicTacToeAction, TicTacToeState>, B: Agent<TicTacToeAction, TicTacToeState>  {
+    
+    pub fn do_print(&mut self, print: bool) {
+        self.do_print = print;
     }
 
-    fn start(&self) {
+    fn print(&self) {
+        
+        let r1 = self.current_state.board[0].iter().map(|c| match c {
+            Some(Player::Player1) => 'X',
+            Some(Player::Player2) => 'O',
+            None => ' '
+        }).collect::<String>();
+        let r2 = self.current_state.board[1].iter().map(|c| match c {
+            Some(Player::Player1) => 'X',
+            Some(Player::Player2) => 'O',
+            None => ' '
+        }).collect::<String>();
+        let r3 = self.current_state.board[2].iter().map(|c| match c {
+            Some(Player::Player1) => 'X',
+            Some(Player::Player2) => 'O',
+            None => ' '
+        }).collect::<String>();
+        println!("┌───┐");
+        println!("|{}|", r1);
+        println!("|{}|", r2);
+        println!("|{}|", r3);
+        println!("└───┘")
+    }
+}
+impl<A, B> Game<TicTacToeAction, TicTacToeState, A, B> for TicTacToe<A, B> where A: Agent<TicTacToeAction, TicTacToeState>, B: Agent<TicTacToeAction, TicTacToeState>  {
+    fn new(player1: A, player2: B) -> Self {
+        TicTacToe { player1, player2,
+            current_state: TicTacToeState::default(),
+            do_print: false
+        }
+    }
 
+    fn start(&mut self) -> Option<Player> {
+        if self.do_print {
+            println!("Starting game:");
+            self.print();
+        }
+
+        while !self.current_state.is_terminal() { // When the game hasn't ended yet
+            let player1_action = self.player1.get_action(&self.current_state);
+            self.current_state = self.current_state.take_action(player1_action);
+
+            if self.do_print {                
+                self.print();
+            }
+
+            if self.current_state.is_terminal() {
+                return self.current_state.get_winner();
+            }
+            
+            
+
+            let player2_action = self.player1.get_action(&self.current_state);
+            self.current_state = self.current_state.take_action(player2_action);
+
+            if self.do_print {                
+                self.print();
+            }
+        }
+
+        self.current_state.get_winner()
     }
 }
 
 pub struct PlayerAgent;
 impl Agent <TicTacToeAction, TicTacToeState> for PlayerAgent {
     fn get_action(&self, state: &TicTacToeState) -> TicTacToeAction {
+        println!("Please enter coordinations:");
+
         panic!()
     }
 }
@@ -182,9 +246,9 @@ pub struct AlphaAgent<'a> {
     searcher: MCTS<'a, TicTacToeState, TicTacToeAction>
 }
 impl<'a> AlphaAgent<'a> {
-    fn new(model: &'a CatZeroModel<'a>) -> Self {
+    pub fn new(model: &'a CatZeroModel<'a>) -> Self {
         AlphaAgent {
-            searcher: MCTS::new(&model)
+            searcher: MCTS::new(&model).iter_limit(Some(100))
         }
     }
 }
