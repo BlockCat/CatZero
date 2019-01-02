@@ -19,13 +19,13 @@ fn main() {
     
     println!("Version: {}", version);
 
-    let nn = match model::CatZeroModel::new(&python, (5, 3, 3), (1, 3, 3), 0.1, 2) {
+    /*let nn = match model::CatZeroModel::new(&python, (5, 3, 3), (1, 3, 3), 0.1, 2) {
         Ok(e) => e,
         Err(e) => {
             e.print(python);
             return;
         }
-    };
+    };*/
     //nn.save("saved_model.h5").unwrap();
 
     let agent1 = PlayerAgent;// AlphaAgent::new(&nn);
@@ -45,5 +45,5 @@ fn main() {
 
     //let result: String = nn.call(python, "create_model", cpython::NoArgs, None).unwrap().extract(python).unwrap();
 
-    //println!("Result: {}", result);    
+    //println!("Result: {}", result);
 }

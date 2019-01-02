@@ -1,5 +1,6 @@
 
-if __name__ == "__main__":    
+if __name__ == "__main__":
+    import numpy as np
     import keras
     import builtins as bb
     from keras.models import Model
@@ -54,6 +55,16 @@ def policy_head(model, reg_constant, flatten_size):
     model = Flatten()(model)
     model = Dense(flatten_size)(model)
     return Activation("softmax", name="policy_h")(model)
+
+def learn(model: Model, inputs, probs, values, batch_size, epochs):
+    return model.fit(
+        x = np.array([inputs]),
+        y = [np.array(probs), np.array(values)],
+        batch_size=batch_size,
+        epochs=epochs,
+        shuffle=True
+    )
+    
 
 def evaluate(tensor, model: Model, output_shape):     
     result = model.predict(np.array([tensor]))    

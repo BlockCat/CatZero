@@ -8,11 +8,12 @@ macro_rules! py_import {
     }
 }
 
+pub type Tensor<A> = Vec<Vec<Vec<A>>>;
+
 pub struct CatZeroModel<'a> {
     python: &'a Python<'a>,
     module: PyModule,
-    model: PyObject,
-    input_shape: (u32, u32, u32), // Channel, dim, dim
+    model: PyObject,    
     output_shape: (u32, u32, u32)
 }
 
@@ -24,21 +25,28 @@ impl<'a> CatZeroModel<'a> {
         let module = CatZeroModel::create_module(python)?;
         let model = module.call(*python, "create_model", ((python.None(), input_shape.0, input_shape.1, input_shape.2), output_shape.0 * output_shape.1 * output_shape.2, reg_constant, residual_blocks), None)?;
 
-        Ok(CatZeroModel{ python, module, model, input_shape, output_shape })
+        Ok(CatZeroModel{ python, module, model, output_shape })
     }
 
-    pub fn evaluate(&self, tensor: Vec<Vec<Vec<u8>>>) -> PyResult<(f32, Vec<Vec<Vec<f32>>>)> {
+    pub fn evaluate(&self, tensor: Tensor<u8>) -> PyResult<(f32, Tensor<f32>)> {
         
         let pyres = self.module.call(*self.python, "evaluate", (tensor, &self.model, self.output_shape), None)
                 .expect("Could not call python module: 'evaluate'");
         
-        let (value, tensor): (f32, Vec<Vec<Vec<f32>>>) = pyres.extract(*self.python)
+        let (value, tensor): (f32, Tensor<f32>) = pyres.extract(*self.python)
                 .expect("Could not extract rust types from python");
 
         Ok((value, tensor))
     }
 
-    pub fn load(python: &'a Python, path: &str, input_shape: (u32, u32, u32), output_shape: (u32, u32, u32)) -> PyResult<CatZeroModel<'a>> {
+    pub fn learn(&self, inputs: Vec<Tensor<u8>>, labels: Vec<(Tensor<f32>, f32)>, batch_size: u32, epochs: u32) -> PyResult<()> {
+        let (probs, values): (Vec<_>, Vec<_>) = labels.into_iter().unzip(); 
+        self.module.call(*self.python, "learn", (&self.model, inputs, probs, values, batch_size, epochs), None);
+
+        Ok(())
+    }
+
+    pub fn load(python: &'a Python, path: &str, output_shape: (u32, u32, u32)) -> PyResult<CatZeroModel<'a>> {
         let path = {
             let mut path_buf = std::path::PathBuf::new();
             path_buf.push(std::env::current_dir().unwrap());
@@ -49,7 +57,7 @@ impl<'a> CatZeroModel<'a> {
         let module = CatZeroModel::create_module(python)?;
         let model = module.call(*python, "load_model", (path, ), None)?;
 
-        Ok(CatZeroModel { python, module, model, input_shape, output_shape })
+        Ok(CatZeroModel { python, module, model, output_shape })
     }
 
     pub fn save(&self, path: &str) -> PyResult<()> {
