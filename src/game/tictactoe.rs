@@ -1,6 +1,7 @@
-use crate::game::{Game, GameAction, GameState, Agent, Player};
+use crate::game::{Game, GameAction, GameState, Agent, Player,};
 use crate::mcts::MCTS;
-use crate::model::CatZeroModel;
+use crate::model::{CatZeroModel, Tensor};
+
 use hashbrown::HashSet;
 
 #[derive(Default, PartialEq, Eq, Hash, Clone)]
@@ -10,66 +11,36 @@ pub struct TicTacToeState {
 }
 
 impl TicTacToeState {
-    fn into_vec(&self) -> Vec<Vec<Vec<u8>>> {
-        let current_cross_board: Vec<Vec<u8>> = self.board.iter().map(|row| {
-            row.iter().map(|cell| {
-                match cell {
-                    Some(Player::Player1) => 1,
-                    _ => 0
-                }
-            }).collect()
+
+    fn into_vec(&self) -> Tensor<u8> {
+        
+        let current_cross_board = self.board.iter().map(|row| {
+            row.iter().map(|cell| (cell == &Some(Player::Player1)) as u8).collect()
         }).collect();
-        let current_circle_board: Vec<Vec<u8>> = self.board.iter().map(|row| {
-            row.iter().map(|cell| {
-                match cell {
-                    Some(Player::Player2) => 1,
-                    _ => 0
-                }
-            }).collect()
+
+        let current_circle_board = self.board.iter().map(|row| {
+            row.iter().map(|cell| (cell == &Some(Player::Player2)) as u8).collect()
         }).collect();
+
         vec!(current_cross_board, current_circle_board)
     }
 
     fn get_winner(&self) -> Option<Player> {
-        // Check rows
-        for r in 0..3 {            
-            if self.board[r].iter().all(|s| *s == Some(Player::Player1)) {
+        for line in &[
+            // Rows
+            [(0,0), (1, 0), (2,0)], [(0,1), (1, 1), (2,1)], [(0,2), (1, 2), (2,2)],
+            // Cols
+            [(0, 0), (0, 1), (0, 2)], [(1, 0), (1, 1), (1, 2)], [(2, 0), (2, 1), (2, 2)],
+            // Diags
+            [(0, 0), (1, 1), (2, 2)], [(2, 0), (1, 1), (0, 2)]
+        ] {
+            if line.into_iter().all(|&(x, y)| self.board[y][x] == Some(Player::Player1)) {
                 return Some(Player::Player1);
             }
-            if self.board[r].iter().all(|s| *s == Some(Player::Player2)) {
+            if line.into_iter().all(|&(x, y)| self.board[y][x] == Some(Player::Player2)) {
                 return Some(Player::Player2);
             }
         }
-
-        for c in 0..3 {
-            let col = [&self.board[0][c], &self.board[1][c], &self.board[2][c]];
-            if col.iter().all(|s| **s == Some(Player::Player1)) {
-                return Some(Player::Player1);
-            }
-
-            if col.iter().all(|s| **s == Some(Player::Player2)) {
-                return Some(Player::Player2);
-            }
-        }
-
-        let diag = [&self.board[0][0],&self.board[1][1],&self.board[2][2]];
-        if diag.iter().all(|s| **s == Some(Player::Player1)) {
-            return Some(Player::Player1);
-        }
-
-        if diag.iter().all(|s| **s == Some(Player::Player2)) {
-            return Some(Player::Player2);
-        }
-
-        let diag = [&self.board[0][2],&self.board[1][1],&self.board[2][0]];
-        if diag.iter().all(|s| **s == Some(Player::Player1)) {
-            return Some(Player::Player1);
-        }
-
-        if diag.iter().all(|s| **s == Some(Player::Player2)) {
-            return Some(Player::Player2);
-        }
-
         None
     }
 }
@@ -89,7 +60,7 @@ impl GameState<TicTacToeAction> for TicTacToeState {
     fn possible_actions(&self) -> HashSet<TicTacToeAction> {
         self.board.iter().enumerate().map(|(y, row)| {
             row.iter().enumerate().filter_map(move |(x, cell)| {
-                match cell {
+                 match cell {
                     None => Some(TicTacToeAction {x: x, y: y}),
                     _ => None
                 }
@@ -110,14 +81,10 @@ impl GameState<TicTacToeAction> for TicTacToeState {
     fn terminal_reward(&self, searched_player: Player) -> f32 {
         let winner = self.get_winner();
 
-        if let Some(winner) = winner {
-            if winner == searched_player {
-                1f32
-            } else {
-                -1f32
-            }
-        } else {
-            0f32
+        match winner {            
+            Some(ref player) if player == &searched_player => 1f32,
+            Some(_) => -1f32,
+            None => 0f32,            
         }
     }
 
@@ -148,17 +115,8 @@ impl GameState<TicTacToeAction> for TicTacToeState {
 
 impl Into<Vec<Vec<Vec<u8>>>> for TicTacToeState {
     fn into(self) -> Vec<Vec<Vec<u8>>> {
-        let cross = self.board.iter()
-            .map(|row| row.into_iter().map(|cell| match cell {
-                Some(Player::Player1) => 1,
-                Some(Player::Player2) | None => 0                
-            }).collect()).collect();
-
-        let circle = self.board.iter()
-            .map(|row| row.into_iter().map(|cell| match cell {
-                Some(Player::Player2) => 1,
-                Some(Player::Player1) | None => 0                
-            }).collect()).collect();
+        let cross = self.board.iter().map(|row| row.into_iter().map(|cell| (cell == &Some(Player::Player1)) as u8).collect()).collect();
+        let circle = self.board.iter().map(|row| row.into_iter().map(|cell| (cell == &Some(Player::Player2)) as u8).collect()).collect();        
 
         vec!(cross, circle)
     }
@@ -170,9 +128,7 @@ pub struct TicTacToeAction {
     y: usize,
 }
 
-impl GameAction for TicTacToeAction {
-
-}
+impl GameAction for TicTacToeAction {}
 
 pub struct TicTacToe<A, B> where A: Agent<TicTacToeAction, TicTacToeState>, B: Agent<TicTacToeAction, TicTacToeState> {
     player1: A,
@@ -239,7 +195,7 @@ impl<A, B> Game<TicTacToeAction, TicTacToeState, A, B> for TicTacToe<A, B> where
             
             
 
-            let player2_action = self.player1.get_action(&self.current_state);
+            let player2_action = self.player2.get_action(&self.current_state);
             self.current_state = self.current_state.take_action(player2_action);
 
             if self.do_print {                
@@ -249,11 +205,15 @@ impl<A, B> Game<TicTacToeAction, TicTacToeState, A, B> for TicTacToe<A, B> where
 
         self.current_state.get_winner()
     }
+
+    fn history(&self) -> Vec<TicTacToeState> {
+        panic!()
+    }
 }
 
 pub struct PlayerAgent;
 impl Agent <TicTacToeAction, TicTacToeState> for PlayerAgent {
-    fn get_action(&self, state: &TicTacToeState) -> TicTacToeAction {
+    fn get_action(&self, _: &TicTacToeState) -> TicTacToeAction {
         use std::io;
 
         let mut buffer = String::new();

@@ -59,6 +59,7 @@ pub trait Game<A, S, C, D> where A: GameAction, S:GameState<A>, C: Agent<A, S>, 
     fn new(player1: C, player2: D) -> Self;
     
     fn start(&mut self) -> Option<Player>;
+    fn history(&self) -> Vec<S>;
 
 }
 
