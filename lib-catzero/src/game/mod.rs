@@ -1,5 +1,3 @@
-pub mod tictactoe;
-
 use hashbrown::HashSet;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
@@ -9,7 +7,7 @@ pub enum Player {
 
 impl Player {
 
-    fn other(&self) -> Player {
+    pub fn other(&self) -> Player {
         match self {
             Player::Player1 => Player::Player2,
             Player::Player2 => Player::Player1

@@ -1,0 +1,8 @@
+[package]
+name = "catzero"
+version = "0.1.0"
+authors = ["BlockCat"]
+
+[dependencies]
+cpython = "0.2.1"
+hashbrown = "0.1.7"

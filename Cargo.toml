@@ -1,8 +1,5 @@
-[package]
-name = "rust-test"
-version = "0.1.0"
-authors = ["zinoonomiwo"]
-
-[dependencies]
-cpython = "0.2.1"
-hashbrown = "0.1.7"
+[workspace]
+members = [
+    "lib-catzero",
+    "tictactoe"
+]

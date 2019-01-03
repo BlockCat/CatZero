@@ -1,0 +1,8 @@
+[package]
+name = "catzero-tictactoe"
+version = "0.1.0"
+authors = ["BlockCat"]
+
+[dependencies]
+catzero = {path = "../lib-catzero"}
+hashbrown = "0.1.7"

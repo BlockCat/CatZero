@@ -20,14 +20,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "catzero-tictactoe"
-version = "0.1.0"
-dependencies = [
- "catzero 0.1.0",
- "hashbrown 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "cfg-if"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

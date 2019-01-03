@@ -1,6 +1,5 @@
-use crate::game::{Game, GameAction, GameState, Agent, Player,};
-use crate::mcts::MCTS;
-use crate::model::{CatZeroModel, Tensor};
+use catzero::{ MCTS, CatZeroModel, Tensor};
+use catzero::game::{Game, GameAction, GameState, Agent, Player};
 
 use hashbrown::HashSet;
 
@@ -192,8 +191,6 @@ impl<A, B> Game<TicTacToeAction, TicTacToeState, A, B> for TicTacToe<A, B> where
             if self.current_state.is_terminal() {
                 return self.current_state.get_winner();
             }
-            
-            
 
             let player2_action = self.player2.get_action(&self.current_state);
             self.current_state = self.current_state.take_action(player2_action);
@@ -212,7 +209,7 @@ impl<A, B> Game<TicTacToeAction, TicTacToeState, A, B> for TicTacToe<A, B> where
 }
 
 pub struct PlayerAgent;
-impl Agent <TicTacToeAction, TicTacToeState> for PlayerAgent {
+impl Agent<TicTacToeAction, TicTacToeState> for PlayerAgent {
     fn get_action(&self, _: &TicTacToeState) -> TicTacToeAction {
         use std::io;
 
@@ -241,7 +238,7 @@ impl<'a> AlphaAgent<'a> {
         }
     }
 }
-impl<'a> Agent <TicTacToeAction, TicTacToeState> for AlphaAgent<'a> {
+impl<'a> Agent<TicTacToeAction, TicTacToeState> for AlphaAgent<'a> {
     fn get_action(&self, state: &TicTacToeState) -> TicTacToeAction {
         self.searcher.search(state.clone()).clone()
     }

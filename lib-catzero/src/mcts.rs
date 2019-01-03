@@ -74,7 +74,6 @@ struct MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
     search_player: Player,
     model: &'a CatZeroModel<'a>,
     nodes: Vec<MCNode<A, B>>,
-    //states: HashSet<A, u32>
 }
 
 impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
@@ -103,7 +102,6 @@ impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
 
             node = parent;
         }
-
     }
 
     fn select_node(&mut self) -> usize {
@@ -143,6 +141,10 @@ impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
             .map(|s| s.0.clone())
     }
 
+
+    // TODO: Get history of previous steps,
+    // Right now, if we do a search from a state, there is no history from before that state.
+    // Eventhough the state itself has history.
     fn history(&self, node_id: usize) -> Vec<&A> {
         let mut history = Vec::new();
         let mut parent = node_id; //Start at node

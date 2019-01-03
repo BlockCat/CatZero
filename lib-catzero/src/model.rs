@@ -20,6 +20,7 @@ pub struct CatZeroModel<'a> {
 impl<'a> CatZeroModel<'a> {
 
     // TODO: Make sure to change output shape into a tuple because thatś nicer to work with
+    /// input_shape: (channels, dim, dim)
     pub fn new(python: &'a Python, input_shape: (u32, u32, u32), output_shape: (u32, u32, u32), reg_constant: f32, residual_blocks: u32) -> PyResult<Self> {
 
         let module = CatZeroModel::create_module(python)?;
