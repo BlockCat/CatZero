@@ -1,5 +1,5 @@
 use catzero::{ MCTS, CatZeroModel, Tensor};
-use catzero::game::{Game, GameAction, GameState, Agent, Player};
+use catzero::game::{GameAction, GameState, Agent, Player};
 
 use hashbrown::HashSet;
 
@@ -24,24 +24,7 @@ impl TicTacToeState {
         vec!(current_cross_board, current_circle_board)
     }
 
-    fn get_winner(&self) -> Option<Player> {
-        for line in &[
-            // Rows
-            [(0,0), (1, 0), (2,0)], [(0,1), (1, 1), (2,1)], [(0,2), (1, 2), (2,2)],
-            // Cols
-            [(0, 0), (0, 1), (0, 2)], [(1, 0), (1, 1), (1, 2)], [(2, 0), (2, 1), (2, 2)],
-            // Diags
-            [(0, 0), (1, 1), (2, 2)], [(2, 0), (1, 1), (0, 2)]
-        ] {
-            if line.into_iter().all(|&(x, y)| self.board[y][x] == Some(Player::Player1)) {
-                return Some(Player::Player1);
-            }
-            if line.into_iter().all(|&(x, y)| self.board[y][x] == Some(Player::Player2)) {
-                return Some(Player::Player2);
-            }
-        }
-        None
-    }
+    
 }
 
 impl GameState<TicTacToeAction> for TicTacToeState {
@@ -65,6 +48,25 @@ impl GameState<TicTacToeAction> for TicTacToeState {
                 }
             })
         }).flatten().collect()
+    }
+
+    fn get_winner(&self) -> Option<Player> {
+        for line in &[
+            // Rows
+            [(0,0), (1, 0), (2,0)], [(0,1), (1, 1), (2,1)], [(0,2), (1, 2), (2,2)],
+            // Cols
+            [(0, 0), (0, 1), (0, 2)], [(1, 0), (1, 1), (1, 2)], [(2, 0), (2, 1), (2, 2)],
+            // Diags
+            [(0, 0), (1, 1), (2, 2)], [(2, 0), (1, 1), (0, 2)]
+        ] {
+            if line.into_iter().all(|&(x, y)| self.board[y][x] == Some(Player::Player1)) {
+                return Some(Player::Player1);
+            }
+            if line.into_iter().all(|&(x, y)| self.board[y][x] == Some(Player::Player2)) {
+                return Some(Player::Player2);
+            }
+        }
+        None
     }
 
 
@@ -165,16 +167,17 @@ impl<A, B> TicTacToe<A, B> where A: Agent<TicTacToeAction, TicTacToeState>, B: A
         println!("|{}|", r3);
         println!("└───┘")
     }
-}
-impl<A, B> Game<TicTacToeAction, TicTacToeState, A, B> for TicTacToe<A, B> where A: Agent<TicTacToeAction, TicTacToeState>, B: Agent<TicTacToeAction, TicTacToeState>  {
-    fn new(player1: A, player2: B) -> Self {
-        TicTacToe { player1, player2,
+
+    pub fn new(player1: A , player2: B) -> Self {
+        TicTacToe {
+            player1: player1,
+            player2: player2,
             current_state: TicTacToeState::default(),
             do_print: false
         }
     }
 
-    fn start(&mut self) -> Option<Player> {
+    pub fn start(&mut self) -> Option<Player> {
         if self.do_print {
             println!("Starting game:");
             self.print();
@@ -202,10 +205,6 @@ impl<A, B> Game<TicTacToeAction, TicTacToeState, A, B> for TicTacToe<A, B> where
 
         self.current_state.get_winner()
     }
-
-    fn history(&self) -> Vec<TicTacToeState> {
-        panic!()
-    }
 }
 
 pub struct PlayerAgent;
@@ -228,18 +227,3 @@ impl Agent<TicTacToeAction, TicTacToeState> for PlayerAgent {
     }
 }
 
-pub struct AlphaAgent<'a> {
-    searcher: MCTS<'a, TicTacToeState, TicTacToeAction>
-}
-impl<'a> AlphaAgent<'a> {
-    pub fn new(model: &'a CatZeroModel<'a>) -> Self {
-        AlphaAgent {
-            searcher: MCTS::new(&model).time_limit(Some(3000))
-        }
-    }
-}
-impl<'a> Agent<TicTacToeAction, TicTacToeState> for AlphaAgent<'a> {
-    fn get_action(&self, state: &TicTacToeState) -> TicTacToeAction {
-        self.searcher.search(state.clone()).clone()
-    }
-}

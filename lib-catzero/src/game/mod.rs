@@ -1,4 +1,7 @@
 use hashbrown::HashSet;
+use mcts::MCTS;
+use model::Tensor;
+use model::CatZeroModel;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum Player {
@@ -11,6 +14,16 @@ impl Player {
         match self {
             Player::Player1 => Player::Player2,
             Player::Player2 => Player::Player1
+        }
+    }
+
+    pub fn reward(winner: Option<Player>, other: Self) -> f32 {
+        if winner == Some(other) {
+            1f32
+        } else if winner.is_some() {
+            -1f32
+        } else {
+            0f32
         }
     }
 }
@@ -39,7 +52,7 @@ impl From<Player> for u8 {
 }
 
 
-pub trait GameState<A>: Eq + std::hash::Hash + Into<Vec<Vec<Vec<u8>>>> where A: GameAction {
+pub trait GameState<A>: Eq + std::hash::Hash + Into<Vec<Vec<Vec<u8>>>> + Default + Clone where A: GameAction {
     fn is_terminal(&self) -> bool;
     fn current_player(&self) -> Player;
     fn possible_actions(&self) -> HashSet<A>;
@@ -47,20 +60,41 @@ pub trait GameState<A>: Eq + std::hash::Hash + Into<Vec<Vec<Vec<u8>>>> where A: 
     fn terminal_reward(&self, searched_player: Player) -> f32;
     fn into_tensor(&self, history: Vec<&Self>) -> Vec<Vec<Vec<u8>>>;
     fn into_actions(Vec<Vec<Vec<f32>>>) -> Vec<(f32, A)>;
+    fn get_winner(&self) -> Option<Player>;
 }
 
 pub trait GameAction: Eq + std::hash::Hash + Clone + std::fmt::Debug {
 
 }
 
-pub trait Game<A, S, C, D> where A: GameAction, S:GameState<A>, C: Agent<A, S>, D: Agent<A, S>  {
+/*pub trait Game<A, S, C, D> where A: GameAction, S:GameState<A>, C: Agent<A, S>, D: Agent<A, S>  {
     fn new(player1: C, player2: D) -> Self;
     
     fn start(&mut self) -> Option<Player>;
     fn history(&self) -> Vec<S>;
 
-}
+}*/
 
 pub trait Agent<A, S> where A:GameAction, S:GameState<A> {
     fn get_action(&self, state: &S) -> A;
+}
+
+pub struct AlphaAgent<'a, A, S> where A:GameAction, S:GameState<A> {
+    searcher: MCTS<'a, S, A>
+}
+impl<'a, A, S> AlphaAgent<'a, A, S> where A:GameAction, S:GameState<A> {
+    pub fn new(model: &'a CatZeroModel<'a>,) -> Self {
+        AlphaAgent {
+            searcher: MCTS::new(&model).time_limit(Some(3000))
+        }
+    }
+
+    pub fn get_alpha_action(&self, state: &S) -> (A, Tensor<f32>) {
+        panic!()
+    }
+}
+impl<'a, A, S> Agent<A, S> for AlphaAgent<'a, A, S> where A:GameAction, S:GameState<A>{
+    fn get_action(&self, state: &S) -> A {
+        self.searcher.search(state.clone()).clone()
+    }
 }

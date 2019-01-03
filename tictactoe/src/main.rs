@@ -4,7 +4,7 @@ extern crate hashbrown;
 mod tictactoe;
 
 use tictactoe::*;
-use catzero::game::Game;
+use catzero::game::AlphaAgent;
 
 fn main() {
 
