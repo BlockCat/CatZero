@@ -1,5 +1,6 @@
-use crate::model::CatZeroModel;
+use crate::model::{CatZeroModel, Tensor};
 use crate::game::{GameAction, GameState, Player};
+
 use std::time::{Duration, SystemTime};
 use hashbrown::HashMap;
 
@@ -23,7 +24,7 @@ impl<'a, A, B> MCTS<'a, A, B> where A: GameState<B>, B: GameAction  {
     }
 
     pub fn time_limit(mut self, milli_seconds: Option<u32>) -> Self {
-        self.time_limit = milli_seconds;
+        self.time_limit = milli_seconds;        
         self
     }
 
@@ -31,8 +32,8 @@ impl<'a, A, B> MCTS<'a, A, B> where A: GameState<B>, B: GameAction  {
         self.iter_limit = iter_limit;
         self
     }
-    
-    pub fn search(&'a self, root_state: A) -> B {
+
+    pub fn alpha_search(&'a self, root_state: A) -> (B, Tensor<f32>) {
         match (self.iter_limit, self.time_limit) {
             (None, None) => panic!("There is no search limit specified, either use a time_limit or iter_limit."),
             (Some(_), Some(_)) => panic!("Too many limits are specified, only one allowed"),
@@ -52,8 +53,18 @@ impl<'a, A, B> MCTS<'a, A, B> where A: GameState<B>, B: GameAction  {
                 root_tree.execute_round();
             }
         }
+
+        let action = root_tree.best_child(0, 0f32).0.clone();
         
-        root_tree.best_child(0, 0f32).0.clone()
+        // TODO: We need some way to restore the output of probs to trainable labels
+        // Mapping function that maps the actions to a probability tensor<f32>
+        let root = &root_tree.nodes[0];
+
+        panic!()
+    }
+    
+    pub fn search(&'a self, root_state: A) -> B {
+        self.alpha_search(root_state).0
     }
 }
 

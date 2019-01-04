@@ -9,7 +9,7 @@ pub struct AlphaZero<'a, A, B> where A: GameAction, B: GameState<A> {
 }
 
 impl<'a,A, B> AlphaZero<'a, A, B> where A: GameAction, B: GameState<A> {
-    fn new(agent1: AlphaAgent<'a, A, B>, agent2: AlphaAgent<'a, A, B>) -> Self {
+    pub fn new(agent1: AlphaAgent<'a, A, B>, agent2: AlphaAgent<'a, A, B>) -> Self {
         // Play match, player_1 is the play we are currently teaching, player_2 is the current best player
         AlphaZero {            
             player_1: agent1,
@@ -57,14 +57,22 @@ impl<'a,A, B> AlphaZero<'a, A, B> where A: GameAction, B: GameState<A> {
                 // retrieve winner and history
                 let (winner, history) = self.play_game(&player_first, &player_second);
 
-                let reward = Player::reward(winner, search_player);
+                let reward = Player::reward(winner, search_player);                
+                let tensors: Vec<Tensor<u8>> = history.iter().enumerate().map(|(i, (state, _))| {
+                    state.into_tensor(history.iter().take(i).map(|(state, _)| state).collect())
+                }).collect();
 
+                let probs: Vec<Tensor<f32>> = history.into_iter().map(|(_, probs)| probs).collect();
+                let rewards: Vec<f32> = vec!(reward; probs.len());
+                
                 // Learn game
                 // data: tensor -> (move probabilities, final reward)
+                self.player_1.learn(tensors, probs, rewards);
             }
 
+            self.player_1.save("player_agent.h5");
+
             // Play 3 matches to determine better player. In case of multiple draws choose newer guy            
-        }       
-                
+        }                
     }
 }

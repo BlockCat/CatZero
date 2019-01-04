@@ -80,17 +80,27 @@ pub trait Agent<A, S> where A:GameAction, S:GameState<A> {
 }
 
 pub struct AlphaAgent<'a, A, S> where A:GameAction, S:GameState<A> {
+    model: &'a CatZeroModel<'a>,
     searcher: MCTS<'a, S, A>
 }
 impl<'a, A, S> AlphaAgent<'a, A, S> where A:GameAction, S:GameState<A> {
     pub fn new(model: &'a CatZeroModel<'a>,) -> Self {
         AlphaAgent {
+            model: model,
             searcher: MCTS::new(&model).time_limit(Some(3000))
         }
     }
 
+    pub fn save(&self, path: &str) {
+        self.model.save(path).expect("Could not save model");
+    }
+
+    pub fn learn(&self, tensors: Vec<Tensor<u8>>, probs: Vec<Tensor<f32>>, rewards: Vec<f32>) {
+        self.model.learn(tensors, probs, rewards, 3, 1).expect("Could not learn game!");
+    }
+
     pub fn get_alpha_action(&self, state: &S) -> (A, Tensor<f32>) {
-        panic!()
+        self.searcher.alpha_search(state.clone()).clone()
     }
 }
 impl<'a, A, S> Agent<A, S> for AlphaAgent<'a, A, S> where A:GameAction, S:GameState<A>{

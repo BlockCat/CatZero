@@ -61,9 +61,9 @@ impl<'a> CatZeroModel<'a> {
         Ok((value, tensor))
     }
 
-    pub fn learn(&self, inputs: Vec<Tensor<u8>>, labels: Vec<(Tensor<f32>, f32)>, batch_size: u32, epochs: u32) -> PyResult<()> {
-        let (probs, values): (Vec<_>, Vec<_>) = labels.into_iter().unzip(); 
-        self.module.call(*self.python, "learn", (&self.model, inputs, probs, values, batch_size, epochs), None)?;
+    pub fn learn(&self, inputs: Vec<Tensor<u8>>, probs: Vec<Tensor<f32>>, rewards: Vec<f32>, batch_size: u32, epochs: u32) -> PyResult<()> {
+        
+        self.module.call(*self.python, "learn", (&self.model, inputs, probs, rewards, batch_size, epochs), None)?;
 
         Ok(())
     }

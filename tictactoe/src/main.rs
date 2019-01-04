@@ -5,6 +5,7 @@ mod tictactoe;
 
 use tictactoe::*;
 use catzero::game::AlphaAgent;
+use catzero::AlphaZero;
 
 fn main() {
 
@@ -15,8 +16,12 @@ fn main() {
     let nn2 = catzero::CatZeroModel::new(&python, (5, 3, 3), (1, 3, 3), 0.1, 5).expect("Could not create neural model");
 
     let agent1 = AlphaAgent::new(&nn1);
-    let agent2 = PlayerAgent;//AlphaAgent::new(&nn2);    
-    let mut ttt = TicTacToe::new(agent1, agent2);
+    let agent2 = AlphaAgent::new(&nn2);    
+
+    let mut alphazero = AlphaZero::<TicTacToeAction, TicTacToeState>::new(agent1, agent2);
+    alphazero.start(1, 10);
+
+    let mut ttt = TicTacToe::new(AlphaAgent::new(&nn1), PlayerAgent);
 
     ttt.do_print(true);
     let winner = ttt.start();
