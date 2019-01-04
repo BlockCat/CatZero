@@ -37,6 +37,8 @@ impl<'a,A, B> AlphaZero<'a, A, B> where A: GameAction, B: GameState<A> {
             history.push((current_state.clone(), probs));
 
             current_state = current_state.take_action(player_action);
+
+            println!("Finished cycle");
         }
 
         let winner = current_state.get_winner();
@@ -49,9 +51,9 @@ impl<'a,A, B> AlphaZero<'a, A, B> where A: GameAction, B: GameState<A> {
         for _ in 0..iterations {            
             for m in 0..matches {
                 let (player_first, player_second, search_player) = if m % 2 == 0 {
-                    (&self.player_1, &self.player_2, Player::Player1)
+                    (&self.player_1, &self.player_1, Player::Player1)
                 } else {
-                    (&self.player_2, &self.player_1, Player::Player2)
+                    (&self.player_2, &self.player_1, Player::Player1)
                 };
 
                 // retrieve winner and history
@@ -70,7 +72,10 @@ impl<'a,A, B> AlphaZero<'a, A, B> where A: GameAction, B: GameState<A> {
                 self.player_1.learn(tensors, probs, rewards);
             }
 
+            //let (winner, history) = self.play_game(&self.player_1, &self.player_2);
+
             self.player_1.save("player_agent.h5");
+
 
             // Play 3 matches to determine better player. In case of multiple draws choose newer guy            
         }                

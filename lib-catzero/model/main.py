@@ -57,9 +57,10 @@ def policy_head(model, reg_constant, flatten_size):
     return Activation("softmax", name="policy_h")(model)
 
 def learn(model: Model, inputs, probs, values, batch_size, epochs):
+    probs = np.array(probs)
     return model.fit(
-        x = np.array([inputs]),
-        y = [np.array(probs), np.array(values)],
+        x = np.array(inputs),
+        y = [probs.reshape((probs.shape[0], -1)), np.array(values)],
         batch_size=batch_size,
         epochs=epochs,
         shuffle=True

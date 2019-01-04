@@ -3,21 +3,25 @@ use crate::game::{GameAction, GameState, Player};
 
 use std::time::{Duration, SystemTime};
 use hashbrown::HashMap;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 pub struct MCTS<'a, A, B> where A: GameState<B>, B: GameAction {
     model: &'a CatZeroModel<'a>,
     time_limit: Option<u32>,
     iter_limit: Option<u32>,
+    temperature: f32,
     phantom: std::marker::PhantomData<A>,
     phantom_2: std::marker::PhantomData<B>,
 }
 
 impl<'a, A, B> MCTS<'a, A, B> where A: GameState<B>, B: GameAction  {
-    pub fn new(model: &'a CatZeroModel<'a>) -> Self {        
+    pub fn new(model: &'a CatZeroModel<'a>, temperature: f32) -> Self {        
         MCTS {
             model,
             time_limit: None,
             iter_limit: None,
+            temperature: temperature,
             phantom: std::marker::PhantomData::<A>,
             phantom_2: std::marker::PhantomData::<B>,
         }
@@ -33,7 +37,7 @@ impl<'a, A, B> MCTS<'a, A, B> where A: GameState<B>, B: GameAction  {
         self
     }
 
-    pub fn alpha_search(&'a self, root_state: A) -> (B, Tensor<f32>) {
+    fn search_helper(&'a self, root_state: A) -> (B, MCTree<A, B>) {
         match (self.iter_limit, self.time_limit) {
             (None, None) => panic!("There is no search limit specified, either use a time_limit or iter_limit."),
             (Some(_), Some(_)) => panic!("Too many limits are specified, only one allowed"),
@@ -58,13 +62,47 @@ impl<'a, A, B> MCTS<'a, A, B> where A: GameState<B>, B: GameAction  {
         
         // TODO: We need some way to restore the output of probs to trainable labels
         // Mapping function that maps the actions to a probability tensor<f32>
-        let root = &root_tree.nodes[0];
 
-        panic!()
+        (action, root_tree)
+    }
+    pub fn alpha_search(&'a self, root_state: A) -> (B, Tensor<f32>) {
+        let (action, root) = self.search_helper(root_state);
+        let root = &root.nodes[0];
+
+        let temp_probs: Vec<f32> = root.actions.iter()
+        //.inspect(|(_, mca)| println!("action count: {}", mca.action_count))
+        .map(|(_, mca)| {            
+            (mca.action_count as f32).powf(self.temperature)
+        })
+        //.inspect(|npro| println!("tempered action: {}", npro))
+        .collect();
+
+        let normalize_constant = temp_probs.iter().map(|i| i.powi(2)).sum::<f32>().sqrt();
+
+        //println!("Normalizing constant: {}", normalize_constant);
+
+        for (mcaction, new_prob) in root.actions.values().zip(temp_probs.iter()) {
+            let new_prob = new_prob / normalize_constant;
+
+            //println!("Setting prob: {}", new_prob);
+
+            *mcaction.probability.borrow_mut() = new_prob;
+        }
+
+        let new_probs= root.raw.iter().map(|channels| {
+            channels.into_iter().map(|ydim| {
+                ydim.into_iter().map(|cell| {
+                    cell.borrow().clone()
+                }).collect()
+            }).collect()
+        }).collect();
+
+
+        (action, new_probs)
     }
     
     pub fn search(&'a self, root_state: A) -> B {
-        self.alpha_search(root_state).0
+        self.search_helper(root_state).0
     }
 }
 
@@ -136,7 +174,7 @@ impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
             .filter(|a| a.1.child_id.is_some())
             .max_by_key(|(_, ma)| {
                 let qsa = ma.action_value / ma.action_count as f32;
-                let usa = exploration_value * ma.probability * (node.visit_count as f32).sqrt() / (1f32 + ma.action_value);
+                let usa = exploration_value * *ma.probability.borrow() * (node.visit_count as f32).sqrt() / (1f32 + ma.action_value);
                 FloatWrapper(qsa + usa)                
             }).unwrap();
 
@@ -181,13 +219,14 @@ impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
     }
 }
 
-struct MCAction{child_id: Option<usize>, action_count: u32, action_value: f32, probability: f32}
+struct MCAction{child_id: Option<usize>, action_count: u32, action_value: f32, probability: Rc<RefCell<f32>>}
 struct MCNode<A, B> where A: GameState<B>, B: GameAction {
     state: A,
     parent: Option<(B, usize)>,
     win_factor: f32,
     visit_count: u32,
-    actions: HashMap<B, MCAction>
+    actions: HashMap<B, MCAction>,
+    raw: Tensor<Rc<RefCell<f32>>>
 }
 
 impl<A, B> MCNode<A, B> where A: GameState<B>, B: GameAction {
@@ -204,13 +243,21 @@ impl<A, B> MCNode<A, B> where A: GameState<B>, B: GameAction {
 
     fn evaluate(state: A, parent: Option<(B, usize)>, model: &CatZeroModel, history: Vec<&A>) -> Self {
         
-        let (win_factor, action_probs) = model.evaluate(state.into_tensor(history))
-            .expect("Could not evaluate tensor");
+        let (win_factor, action_probs_raw) = model.evaluate(state.into_tensor(history))
+            .expect("Could not evaluate tensor");        
+
+        let action_probs_raw = action_probs_raw.into_iter().map(|channels| {
+            channels.into_iter().map(|xdim| {
+                xdim.into_iter().map(|ydim| {
+                    Rc::new(RefCell::new(ydim))
+                }).collect()
+            }).collect()
+        }).collect();
 
         let possible_actions = state.possible_actions();
-        let action_probs: HashMap<_, _> = A::into_actions(action_probs).into_iter() 
-            .filter(|(_, action)| possible_actions.contains(action) ) // Keep only possible probabilities
-            .map(|(prob, action)| 
+        let action_probs: HashMap<_, _> = A::into_actions(&action_probs_raw).into_iter() 
+            .filter(|(action, _)| possible_actions.contains(action) ) // Keep only possible probabilities
+            .map(|(action, prob)| 
                 (action, MCAction {
                     child_id: None,
                     action_count: 0,
@@ -221,7 +268,8 @@ impl<A, B> MCNode<A, B> where A: GameState<B>, B: GameAction {
         MCNode {
             state, parent, win_factor,
             visit_count: 0,
-            actions: action_probs
+            actions: action_probs,
+            raw: action_probs_raw
         }
     }
 }

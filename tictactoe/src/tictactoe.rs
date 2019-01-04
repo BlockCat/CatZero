@@ -1,5 +1,7 @@
 use catzero::{ MCTS, CatZeroModel, Tensor};
 use catzero::game::{GameAction, GameState, Agent, Player};
+use std::rc::Rc;
+use std::cell::RefCell;
 
 use hashbrown::HashSet;
 
@@ -104,11 +106,11 @@ impl GameState<TicTacToeAction> for TicTacToeState {
         current_tensor
     }
 
-    fn into_actions(probs: Vec<Vec<Vec<f32>>>) -> Vec<(f32, TicTacToeAction)> {
+    fn into_actions(probs: &Tensor<Rc<RefCell<f32>>>) -> Vec<(TicTacToeAction, Rc<RefCell<f32>>)> {
         // TODO: Add Dirichlet noise here
         probs[0].iter().enumerate().map(|(y, row)| {
             row.iter().enumerate().map(move |(x, prob)| {
-                (*prob, TicTacToeAction {x: x, y:y})
+                (TicTacToeAction {x: x, y:y}, Rc::clone(prob))
             })
         }).flatten().collect()
     }

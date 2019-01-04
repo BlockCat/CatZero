@@ -13,16 +13,22 @@ fn main() {
     let python = pyenv.python();
 
     let nn1 = catzero::CatZeroModel::new(&python, (5, 3, 3), (1, 3, 3), 0.1, 5).expect("Could not create neural model");
-    let nn2 = catzero::CatZeroModel::new(&python, (5, 3, 3), (1, 3, 3), 0.1, 5).expect("Could not create neural model");
+    //let nn2 = catzero::CatZeroModel::new(&python, (5, 3, 3), (1, 3, 3), 0.1, 5).expect("Could not create neural model");
 
-    let agent1 = AlphaAgent::new(&nn1);
-    let agent2 = AlphaAgent::new(&nn2);    
+    let agent1 = AlphaAgent::new(&nn1, 1f32);
+    let agent2 = AlphaAgent::new(&nn1, 1f32);    
 
     let mut alphazero = AlphaZero::<TicTacToeAction, TicTacToeState>::new(agent1, agent2);
-    alphazero.start(1, 10);
+    for _ in 0..3 {
+        alphazero.start(3, 10);
+        let mut ttt = TicTacToe::new(AlphaAgent::new(&nn1, 1f32), AlphaAgent::new(&nn1, 1f32));
+        
+        ttt.do_print(true);
+        ttt.start();
+    }
 
-    let mut ttt = TicTacToe::new(AlphaAgent::new(&nn1), PlayerAgent);
-
+    let mut ttt = TicTacToe::new(AlphaAgent::new(&nn1, 1f32), PlayerAgent);
+        
     ttt.do_print(true);
     let winner = ttt.start();
 

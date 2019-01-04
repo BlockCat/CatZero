@@ -2,6 +2,8 @@ use hashbrown::HashSet;
 use mcts::MCTS;
 use model::Tensor;
 use model::CatZeroModel;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum Player {
@@ -59,7 +61,7 @@ pub trait GameState<A>: Eq + std::hash::Hash + Into<Vec<Vec<Vec<u8>>>> + Default
     fn take_action(&self, action: A) -> Self;
     fn terminal_reward(&self, searched_player: Player) -> f32;
     fn into_tensor(&self, history: Vec<&Self>) -> Vec<Vec<Vec<u8>>>;
-    fn into_actions(Vec<Vec<Vec<f32>>>) -> Vec<(f32, A)>;
+    fn into_actions(&Tensor<Rc<RefCell<f32>>>) -> Vec<(A, Rc<RefCell<f32>>)>;
     fn get_winner(&self) -> Option<Player>;
 }
 
@@ -84,10 +86,10 @@ pub struct AlphaAgent<'a, A, S> where A:GameAction, S:GameState<A> {
     searcher: MCTS<'a, S, A>
 }
 impl<'a, A, S> AlphaAgent<'a, A, S> where A:GameAction, S:GameState<A> {
-    pub fn new(model: &'a CatZeroModel<'a>,) -> Self {
+    pub fn new(model: &'a CatZeroModel<'a>, temperature: f32) -> Self {
         AlphaAgent {
             model: model,
-            searcher: MCTS::new(&model).time_limit(Some(3000))
+            searcher: MCTS::new(&model, temperature).iter_limit(Some(200))
         }
     }
 
@@ -96,6 +98,11 @@ impl<'a, A, S> AlphaAgent<'a, A, S> where A:GameAction, S:GameState<A> {
     }
 
     pub fn learn(&self, tensors: Vec<Tensor<u8>>, probs: Vec<Tensor<f32>>, rewards: Vec<f32>) {
+        /*println!("Learning game -> tensors: {}, probS: {}, rew: {}", tensors.len(), probs.len(), rewards.len());
+        println!("Tensors: {:?}", tensors);
+        println!("Probs: {:?}", probs);
+        println!("Rewards: {:?}", rewards);*/
+        //panic!();
         self.model.learn(tensors, probs, rewards, 3, 1).expect("Could not learn game!");
     }
 
@@ -105,6 +112,10 @@ impl<'a, A, S> AlphaAgent<'a, A, S> where A:GameAction, S:GameState<A> {
 }
 impl<'a, A, S> Agent<A, S> for AlphaAgent<'a, A, S> where A:GameAction, S:GameState<A>{
     fn get_action(&self, state: &S) -> A {
-        self.searcher.search(state.clone()).clone()
+        let (action, tensor) = self.searcher.alpha_search(state.clone()).clone();
+
+        println!("tensor: {:?}", tensor);
+
+        action
     }
 }

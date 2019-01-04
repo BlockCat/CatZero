@@ -3,7 +3,10 @@ The goal is to make implement alphazero inspired framework for which a set of ru
 The reason I didn't call it AlphaZero is that I don't know if google would appreciate it.
 
 This project will probably end up in the dust, so excuses to any (if any) who comes across this project.
- 
+
+# Current issue: 
+- When the player is Cross, it expect Circle to help him win. Nor can it prevent Circle from winning.
+
 
 ## What it will do:
 1. Provide rules (somehow)
@@ -15,16 +18,6 @@ This project will probably end up in the dust, so excuses to any (if any) who co
 - Tensorflow
 - Keras
 - Numpy
-
-## In progress
-* Do learning
-
-## Todo
-* Fix the python model
-* Train the neural network with the game
-
-## Finished
-* Implement a monte carlo tree search algorithm
 
 ## How AlphaZero works (globally)
 How alpha zero works with a resnet split into two ends: Policy and Value networks.
