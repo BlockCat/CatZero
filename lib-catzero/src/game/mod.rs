@@ -69,14 +69,6 @@ pub trait GameAction: Eq + std::hash::Hash + Clone + std::fmt::Debug {
 
 }
 
-/*pub trait Game<A, S, C, D> where A: GameAction, S:GameState<A>, C: Agent<A, S>, D: Agent<A, S>  {
-    fn new(player1: C, player2: D) -> Self;
-    
-    fn start(&mut self) -> Option<Player>;
-    fn history(&self) -> Vec<S>;
-
-}*/
-
 pub trait Agent<A, S> where A:GameAction, S:GameState<A> {
     fn get_action(&self, state: &S) -> A;
 }
@@ -97,12 +89,7 @@ impl<'a, A, S> AlphaAgent<'a, A, S> where A:GameAction, S:GameState<A> {
         self.model.save(path).expect("Could not save model");
     }
 
-    pub fn learn(&self, tensors: Vec<Tensor<u8>>, probs: Vec<Tensor<f32>>, rewards: Vec<f32>) {
-        /*println!("Learning game -> tensors: {}, probS: {}, rew: {}", tensors.len(), probs.len(), rewards.len());
-        println!("Tensors: {:?}", tensors);
-        println!("Probs: {:?}", probs);
-        println!("Rewards: {:?}", rewards);*/
-        //panic!();
+    pub fn learn(&self, tensors: Vec<Tensor<u8>>, probs: Vec<Tensor<f32>>, rewards: Vec<f32>) {        
         self.model.learn(tensors, probs, rewards, 3, 1).expect("Could not learn game!");
     }
 

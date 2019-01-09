@@ -79,7 +79,7 @@ def save_model(path, model: Model):
     model.save(path)
 
 def load_model(path):
-    keras.models.load_model(path)
+    return keras.models.load_model(path)
 
 def create_model(input_shape, output_shape, reg_const, res_blocks) -> Model:
     # Create the input layer

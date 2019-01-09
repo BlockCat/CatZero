@@ -58,7 +58,7 @@ impl<'a, A, B> MCTS<'a, A, B> where A: GameState<B>, B: GameAction  {
             }
         }
 
-        let action = root_tree.best_child(0, 0f32).0.clone();
+        let action = root_tree.best_child(0, 1f32).0.clone();
         
         // TODO: We need some way to restore the output of probs to trainable labels
         // Mapping function that maps the actions to a probability tensor<f32>
@@ -69,24 +69,14 @@ impl<'a, A, B> MCTS<'a, A, B> where A: GameState<B>, B: GameAction  {
         let (action, root) = self.search_helper(root_state);
         let root = &root.nodes[0];
 
-        let temp_probs: Vec<f32> = root.actions.iter()
-        //.inspect(|(_, mca)| println!("action count: {}", mca.action_count))
-        .map(|(_, mca)| {            
-            (mca.action_count as f32).powf(self.temperature)
-        })
-        //.inspect(|npro| println!("tempered action: {}", npro))
+        let temp_probs: Vec<f32> = root.actions.iter()        
+        .map(|(_, mca)| (mca.action_count as f32).powf(self.temperature))        
         .collect();
 
-        let normalize_constant = temp_probs.iter().map(|i| i.powi(2)).sum::<f32>().sqrt();
-
-        //println!("Normalizing constant: {}", normalize_constant);
+        let normalize_constant = temp_probs.iter().sum::<f32>();
 
         for (mcaction, new_prob) in root.actions.values().zip(temp_probs.iter()) {
-            let new_prob = new_prob / normalize_constant;
-
-            //println!("Setting prob: {}", new_prob);
-
-            *mcaction.probability.borrow_mut() = new_prob;
+            *mcaction.probability.borrow_mut() = new_prob / normalize_constant;
         }
 
         let new_probs= root.raw.iter().map(|channels| {
@@ -161,7 +151,7 @@ impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
                 let expanded_id = self.expand(node_id, action);
                 return expanded_id;
             } else {
-                node_id = self.best_child(node_id, 1f32).1;
+                node_id = self.best_child(node_id, 3f32).1;
             }
         }
         return node_id
@@ -172,9 +162,12 @@ impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
 
         let (best_action, best_child) = node.actions.iter()
             .filter(|a| a.1.child_id.is_some())
-            .max_by_key(|(_, ma)| {
+            .max_by_key(|(a, ma)| {
                 let qsa = ma.action_value / ma.action_count as f32;
-                let usa = exploration_value * *ma.probability.borrow() * (node.visit_count as f32).sqrt() / (1f32 + ma.action_value);
+                let usa = exploration_value * *ma.probability.borrow() * (node.visit_count as f32).sqrt() / (1f32 + ma.action_count as f32);
+                if exploration_value == 0f32 {
+                    println!("({:?}) -> action: {}, count: {}, preprob: {}, U: {}+{}={}", *a, ma.action_value, ma.action_count, *ma.probability.borrow(), qsa, usa, qsa + usa);
+                }
                 FloatWrapper(qsa + usa)                
             }).unwrap();
 
