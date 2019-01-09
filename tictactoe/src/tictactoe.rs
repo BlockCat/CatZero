@@ -84,6 +84,8 @@ impl GameState<TicTacToeAction> for TicTacToeState {
     fn terminal_reward(&self, searched_player: Player) -> f32 {
         let winner = self.get_winner();
 
+        println!("Searched player: {:?}, winner: {:?}", searched_player, winner);
+
         match winner {            
             Some(ref player) if player == &searched_player => 1f32,
             Some(_) => -1f32,

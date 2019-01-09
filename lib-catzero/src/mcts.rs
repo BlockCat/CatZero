@@ -44,8 +44,12 @@ impl<'a, A, B> MCTS<'a, A, B> where A: GameState<B>, B: GameAction  {
             _ => {}
         }
 
+        let current_player = root_state.current_player();
+
         let mut root_tree: MCTree<A, B> = MCTree::new(root_state, &self.model);
 
+        println!("Starting a search for player: {:?}", root_tree.search_player);
+        
         if let Some(limit) = self.iter_limit {
             for _ in 0..limit {
                 root_tree.execute_round();
@@ -58,14 +62,24 @@ impl<'a, A, B> MCTS<'a, A, B> where A: GameState<B>, B: GameAction  {
             }
         }
 
-        let action = root_tree.best_child(0, 1f32).0.clone();
+        let action = root_tree.nodes[0].actions.iter()
+            .filter(|c| c.1.child_id.is_some())
+            .max_by_key(|(a, ma)| {
+                let qsa = ma.action_value / ma.action_count as f32;               
+                
+                println!("({:?}) -> action: {}, count: {}, winning?: {}, preprob: {}, U: {}", *a, ma.action_value, ma.action_count, root_tree.nodes[0].win_factor, *ma.probability.borrow(), qsa);
+
+                ma.action_count
+            }).unwrap().0.clone();
+        
+        //.best_child(0, 0.0).0.clone();
         
         // TODO: We need some way to restore the output of probs to trainable labels
         // Mapping function that maps the actions to a probability tensor<f32>
 
         (action, root_tree)
     }
-    pub fn alpha_search(&'a self, root_state: A) -> (B, Tensor<f32>) {
+    pub fn alpha_search(&'a self, root_state: A) -> (B, Tensor<f32>) {        
         let (action, root) = self.search_helper(root_state);
         let root = &root.nodes[0];
 
@@ -165,9 +179,7 @@ impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
             .max_by_key(|(a, ma)| {
                 let qsa = ma.action_value / ma.action_count as f32;
                 let usa = exploration_value * *ma.probability.borrow() * (node.visit_count as f32).sqrt() / (1f32 + ma.action_count as f32);
-                if exploration_value == 0f32 {
-                    println!("({:?}) -> action: {}, count: {}, preprob: {}, U: {}+{}={}", *a, ma.action_value, ma.action_count, *ma.probability.borrow(), qsa, usa, qsa + usa);
-                }
+                
                 FloatWrapper(qsa + usa)                
             }).unwrap();
 
@@ -254,7 +266,7 @@ impl<A, B> MCNode<A, B> where A: GameState<B>, B: GameAction {
                 (action, MCAction {
                     child_id: None,
                     action_count: 0,
-                    action_value: 0f32,
+                    action_value: win_factor,
                     probability: prob
                 })).collect();
 
