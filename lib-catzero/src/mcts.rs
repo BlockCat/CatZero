@@ -11,8 +11,7 @@ pub struct MCTS<'a, A, B> where A: GameState<B>, B: GameAction {
     time_limit: Option<u32>,
     iter_limit: Option<u32>,
     temperature: f32,
-    phantom: std::marker::PhantomData<A>,
-    phantom_2: std::marker::PhantomData<B>,
+    phantom: std::marker::PhantomData<(A, B)>
 }
 
 impl<'a, A, B> MCTS<'a, A, B> where A: GameState<B>, B: GameAction  {
@@ -22,8 +21,7 @@ impl<'a, A, B> MCTS<'a, A, B> where A: GameState<B>, B: GameAction  {
             time_limit: None,
             iter_limit: None,
             temperature: temperature,
-            phantom: std::marker::PhantomData::<A>,
-            phantom_2: std::marker::PhantomData::<B>,
+            phantom: std::marker::PhantomData
         }
     }
 
@@ -74,9 +72,6 @@ impl<'a, A, B> MCTS<'a, A, B> where A: GameState<B>, B: GameAction  {
         
         //.best_child(0, 0.0).0.clone();
         
-        // TODO: We need some way to restore the output of probs to trainable labels
-        // Mapping function that maps the actions to a probability tensor<f32>
-
         (action, root_tree)
     }
     pub fn alpha_search(&'a self, root_state: A) -> (B, Tensor<f32>) {        
@@ -132,7 +127,8 @@ struct MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
 impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
 
     fn new(root_state: A, model: &'a CatZeroModel<'a>) -> Self {
-        let root_node: MCNode<A, B> = MCNode::evaluate(root_state, None, model, vec!());        
+        let search_player = root_state.current_player();
+        let root_node: MCNode<A, B> = MCNode::evaluate(root_state, None, model, vec!(), search_player);
         MCTree {
             search_player: root_node.state.current_player(),
             model,
@@ -218,7 +214,7 @@ impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
 
          // Take this action and get the next state
         let next_state = self.nodes[node_id].state.take_action(action.clone());
-        let next_node = MCNode::evaluate(next_state, Some((action, node_id)), &self.model, self.history(node_id));
+        let next_node = MCNode::evaluate(next_state, Some((action, node_id)), &self.model, self.history(node_id), self.search_player.clone());
         self.nodes.push(next_node);
         next_node_id
     }
@@ -246,10 +242,16 @@ impl<A, B> MCNode<A, B> where A: GameState<B>, B: GameAction {
 
 impl<A, B> MCNode<A, B> where A: GameState<B>, B: GameAction {    
 
-    fn evaluate(state: A, parent: Option<(B, usize)>, model: &CatZeroModel, history: Vec<&A>) -> Self {
+    fn evaluate(state: A, parent: Option<(B, usize)>, model: &CatZeroModel, history: Vec<&A>, search_player: Player) -> Self {
         
         let (win_factor, action_probs_raw) = model.evaluate(state.into_tensor(history))
-            .expect("Could not evaluate tensor");        
+            .expect("Could not evaluate tensor");  
+
+        let win_factor = if state.is_terminal() {
+            state.terminal_reward(search_player)
+        } else {
+            win_factor
+        };
 
         let action_probs_raw = action_probs_raw.into_iter().map(|channels| {
             channels.into_iter().map(|xdim| {

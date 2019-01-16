@@ -14,7 +14,7 @@ impl<'a> PyEnv<'a> {
             gil: gil,
             python: None
         }
-    }
+    } 
 
     pub fn python(&'a mut self) -> Python<'a> {
         match self.python {

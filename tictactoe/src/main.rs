@@ -12,8 +12,8 @@ fn main() {
     let mut pyenv = catzero::PyEnv::new();
     let python = pyenv.python();
     
-    let nn1 = catzero::CatZeroModel::load(&python, "player_agent.h5", (1, 3, 3)).unwrap();
-/*
+    //let nn1 = catzero::CatZeroModel::load(&python, "player_agent.h5", (1, 3, 3)).unwrap();
+
     let nn1 = catzero::CatZeroModel::new(&python, (5, 3, 3), (1, 3, 3), 0.1, 5).expect("Could not create neural model");
     //let nn2 = catzero::CatZeroModel::new(&python, (5, 3, 3), (1, 3, 3), 0.1, 5).expect("Could not create neural model");
 
@@ -28,7 +28,7 @@ fn main() {
         ttt.do_print(true);
         ttt.start();
         nn1.save("player_agent.h5").unwrap();
-    }*/
+    }
 
     let mut ttt = TicTacToe::new(AlphaAgent::new(&nn1, 1f32), AlphaAgent::new(&nn1, 1f32));
         
