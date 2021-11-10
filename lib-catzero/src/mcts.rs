@@ -1,12 +1,12 @@
 use crate::model::{CatZeroModel, Tensor};
-use crate::game::{GameAction, GameState, Player};
+use crate::game::{GameAction, AlphaZeroState, Player};
 
 use std::time::{Duration, SystemTime};
 use hashbrown::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-pub struct MCTS<'a, A, B> where A: GameState<B>, B: GameAction {
+pub struct MCTS<'a, A, B> where A: AlphaZeroState<B>, B: GameAction {
     model: &'a CatZeroModel<'a>,
     time_limit: Option<u32>,
     iter_limit: Option<u32>,
@@ -14,7 +14,7 @@ pub struct MCTS<'a, A, B> where A: GameState<B>, B: GameAction {
     phantom: std::marker::PhantomData<(A, B)>
 }
 
-impl<'a, A, B> MCTS<'a, A, B> where A: GameState<B>, B: GameAction  {
+impl<'a, A, B> MCTS<'a, A, B> where A: AlphaZeroState<B>, B: GameAction  {
     pub fn new(model: &'a CatZeroModel<'a>, temperature: f32) -> Self {        
         MCTS {
             model,
@@ -118,13 +118,13 @@ impl Ord for FloatWrapper {
     }
 }
 
-struct MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
+struct MCTree<'a, A, B> where A: AlphaZeroState<B>, B: GameAction {
     search_player: Player,
     model: &'a CatZeroModel<'a>,
     nodes: Vec<MCNode<A, B>>,
 }
 
-impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
+impl<'a, A, B> MCTree<'a, A, B> where A: AlphaZeroState<B>, B: GameAction {
 
     fn new(root_state: A, model: &'a CatZeroModel<'a>) -> Self {
         let search_player = root_state.current_player();
@@ -221,7 +221,7 @@ impl<'a, A, B> MCTree<'a, A, B> where A: GameState<B>, B: GameAction {
 }
 
 struct MCAction{child_id: Option<usize>, action_count: u32, action_value: f32, probability: Rc<RefCell<f32>>}
-struct MCNode<A, B> where A: GameState<B>, B: GameAction {
+struct MCNode<A, B> where A: AlphaZeroState<B>, B: GameAction {
     state: A,
     parent: Option<(B, usize)>,
     win_factor: f32,
@@ -230,7 +230,7 @@ struct MCNode<A, B> where A: GameState<B>, B: GameAction {
     raw: Tensor<Rc<RefCell<f32>>>
 }
 
-impl<A, B> MCNode<A, B> where A: GameState<B>, B: GameAction {
+impl<A, B> MCNode<A, B> where A: AlphaZeroState<B>, B: GameAction {
     fn reward(&self, search_player: Player) -> f32 {
         if self.state.is_terminal() {
             self.state.terminal_reward(search_player)
@@ -240,7 +240,7 @@ impl<A, B> MCNode<A, B> where A: GameState<B>, B: GameAction {
     }
 }
 
-impl<A, B> MCNode<A, B> where A: GameState<B>, B: GameAction {    
+impl<A, B> MCNode<A, B> where A: AlphaZeroState<B>, B: GameAction {    
 
     fn evaluate(state: A, parent: Option<(B, usize)>, model: &CatZeroModel, history: Vec<&A>, search_player: Player) -> Self {
         
@@ -261,7 +261,7 @@ impl<A, B> MCNode<A, B> where A: GameState<B>, B: GameAction {
             }).collect()
         }).collect();
 
-        let possible_actions = state.possible_actions();
+        let possible_actions = state.available_moves();
         let action_probs: HashMap<_, _> = A::into_actions(&action_probs_raw).into_iter() 
             .filter(|(action, _)| possible_actions.contains(action) ) // Keep only possible probabilities
             .map(|(action, prob)| 

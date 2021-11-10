@@ -1,12 +1,12 @@
 
-if __name__ == "__main__":
-    import numpy as np
-    import keras
-    import builtins as bb
-    from keras.models import Model
-    from keras.layers import BatchNormalization, Activation, Add, Dense, Convolution2D, Flatten, Input
-    from keras.optimizers import SGD
-    from keras.regularizers import l2
+# if __name__ == "__main__":
+import numpy as np
+import keras
+import builtins as bb
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import BatchNormalization, Activation, Add, Dense, Convolution2D, Flatten, Input
+from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.regularizers import l2
 
 def input_block(bs):
     # One plane for player 1

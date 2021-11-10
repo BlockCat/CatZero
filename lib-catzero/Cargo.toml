@@ -4,5 +4,9 @@ version = "0.1.0"
 authors = ["BlockCat"]
 
 [dependencies]
-cpython = "0.2.1"
+mcts = {path = "../mcts"}
+cpython = { version = "0.7.0", features = ["python-3-9"], default-features = false } 
 hashbrown = "0.1.7"
+
+[env]
+PYTHONHOME = "C:\\tools\\miniconda3\\envs\\tensorflow"

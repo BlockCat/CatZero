@@ -5,4 +5,5 @@ authors = ["BlockCat"]
 
 [dependencies]
 catzero = {path = "../lib-catzero"}
+mcts = { path ="../mcts" }
 hashbrown = "0.1.7"

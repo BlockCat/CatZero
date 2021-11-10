@@ -31,21 +31,22 @@ impl<'a> CatZeroModel<'a> {
 
     fn create_module(python: &Python) -> PyResult<PyModule> {
         let main_str = include_str!("../model/main.py");
-        let keras = python.import("keras")?;
+
 
         let module = PyModule::new(*python, "CatZero")?;
-        
-        module.add(*python, "bb", python.import("builtins")?)?;
-        module.add(*python, "np", python.import("numpy")?)?;
 
-        py_import!(module, python, from keras."models" import "Model", "load_model");
-        py_import!(module, python, from keras."layers" import "Input", "BatchNormalization", "Activation", "Add", "Dense", "Convolution2D", "Flatten");
-        py_import!(module, python, from keras."optimizers" import "SGD");
-        py_import!(module, python, from keras."regularizers" import "l2");
-        
-        module.add(*python, "keras", keras)?;
+        // module.add(*python, "bb", python.import("builtins")?)?;
+        // module.add(*python, "np", python.import("numpy")?)?;
 
-        python.run(main_str, Some(&module.dict(*python)), None)?;
+        // let keras = python.import("keras").expect("Could not import keras module");
+        // py_import!(module, python, from keras."models" import "Model", "load_model");
+        // py_import!(module, python, from keras."layers" import "Input", "BatchNormalization", "Activation", "Add", "Dense", "Convolution2D", "Flatten");
+        // py_import!(module, python, from keras."optimizers" import "SGD");
+        // py_import!(module, python, from keras."regularizers" import "l2");
+        
+        // module.add(*python, "keras", keras)?;
+
+        python.run(main_str, Some(&module.dict(*python)), None)?;        
 
         Ok(module)
     }

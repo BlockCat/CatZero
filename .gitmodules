@@ -1,0 +1,3 @@
+[submodule "mcts"]
+	path = mcts
+	url = git@github.com:BlockCat/mcts.git

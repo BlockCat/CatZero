@@ -1,5 +1,7 @@
-use catzero::{ MCTS, CatZeroModel, Tensor};
-use catzero::game::{GameAction, GameState, Agent, Player};
+use catzero::{ CatZeroModel, Tensor};
+use catzero::game::{GameAction, AlphaZeroState, Agent, Player};
+use mcts::GameState;
+use std::hash::Hash;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -29,19 +31,15 @@ impl TicTacToeState {
     
 }
 
-impl GameState<TicTacToeAction> for TicTacToeState {
-    fn is_terminal(&self) -> bool {
-        match self.get_winner() {
-            Some(_) => true,
-            None => self.board.iter().flatten().filter(|cell| cell.is_none()).count() == 0
-        }        
-    }
+impl GameState for TicTacToeState {
+    type Move = TicTacToeAction;
+    type Player = Player;
+    type MoveList = HashSet<Self::Move>;
 
-    fn current_player(&self) -> Player {
-        self.current_player.clone() 
-    }
+    fn current_player(&self) -> Self::Player {
+        self.current_player.clone()     }
 
-    fn possible_actions(&self) -> HashSet<TicTacToeAction> {
+    fn available_moves(&self) -> Self::MoveList {
         self.board.iter().enumerate().map(|(y, row)| {
             row.iter().enumerate().filter_map(move |(x, cell)| {
                  match cell {
@@ -50,6 +48,21 @@ impl GameState<TicTacToeAction> for TicTacToeState {
                 }
             })
         }).flatten().collect()
+    }
+
+    fn make_move(&mut self, mov: &Self::Move) {
+        self.board[mov.y][mov.x] = Some(self.current_player());
+        self.current_player = self.current_player.other();
+
+    }
+}
+
+impl AlphaZeroState<TicTacToeAction> for TicTacToeState {
+    fn is_terminal(&self) -> bool {
+        match self.get_winner() {
+            Some(_) => true,
+            None => self.board.iter().flatten().filter(|cell| cell.is_none()).count() == 0
+        }        
     }
 
     fn get_winner(&self) -> Option<Player> {
@@ -69,16 +82,6 @@ impl GameState<TicTacToeAction> for TicTacToeState {
             }
         }
         None
-    }
-
-
-    fn take_action(&self, action: TicTacToeAction) -> Self {
-        let mut next_state = self.clone();
-
-        next_state.current_player = self.current_player.other();
-        next_state.board[action.y][action.x] = Some(self.current_player());
-
-        next_state
     }
 
     fn terminal_reward(&self, searched_player: Player) -> f32 {
@@ -188,8 +191,8 @@ impl<A, B> TicTacToe<A, B> where A: Agent<TicTacToeAction, TicTacToeState>, B: A
         }
 
         while !self.current_state.is_terminal() { // When the game hasn't ended yet
-            let player1_action = self.player1.get_action(&self.current_state);
-            self.current_state = self.current_state.take_action(player1_action);
+            let player1_action = self.player1.get_action(&self.current_state).expect("Could not find action1");
+            self.current_state.make_move(&player1_action);
 
             if self.do_print {                
                 self.print();
@@ -199,8 +202,8 @@ impl<A, B> TicTacToe<A, B> where A: Agent<TicTacToeAction, TicTacToeState>, B: A
                 return self.current_state.get_winner();
             }
 
-            let player2_action = self.player2.get_action(&self.current_state);
-            self.current_state = self.current_state.take_action(player2_action);
+            let player2_action = self.player2.get_action(&self.current_state).expect("Could not find action2");
+            self.current_state.make_move(&player2_action);
 
             if self.do_print {                
                 self.print();
@@ -213,7 +216,7 @@ impl<A, B> TicTacToe<A, B> where A: Agent<TicTacToeAction, TicTacToeState>, B: A
 
 pub struct PlayerAgent;
 impl Agent<TicTacToeAction, TicTacToeState> for PlayerAgent {
-    fn get_action(&self, _: &TicTacToeState) -> TicTacToeAction {
+    fn get_action(&mut self, _: &TicTacToeState) -> Option<TicTacToeAction> {
         use std::io;
 
         let mut buffer = String::new();
@@ -224,10 +227,10 @@ impl Agent<TicTacToeAction, TicTacToeState> for PlayerAgent {
         let x: usize = buffer[0..1].parse().expect("X is not an integer");
         let y: usize = buffer[2..3].parse().expect("y is not an integer");
 
-        TicTacToeAction {
+        Some(TicTacToeAction {
             x: x,
             y: y,
-        }
+        })
     }
 }
 
