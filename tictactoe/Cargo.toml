@@ -2,8 +2,14 @@
 name = "catzero-tictactoe"
 version = "0.1.0"
 authors = ["BlockCat"]
+edition = "2018"
 
 [dependencies]
 catzero = {path = "../lib-catzero"}
-mcts = { path ="../mcts" }
+mcts = { path = "../mcts" }
+rand = "0.4"
 hashbrown = "0.1.7"
+
+[env]
+PYTHONHOME = "C:\\tools\\miniconda3\\envs\\tensorflow"
+#set PYTHONHOME=C:\tools\miniconda3\envs\tensorflow

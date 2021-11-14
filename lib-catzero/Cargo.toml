@@ -2,10 +2,12 @@
 name = "catzero"
 version = "0.1.0"
 authors = ["BlockCat"]
+edition = "2018"
 
 [dependencies]
-mcts = {path = "../mcts"}
 cpython = { version = "0.7.0", features = ["python-3-9"], default-features = false } 
+# cpython = { version = "0.7.0"} 
+mcts = { path = "../mcts" }
 hashbrown = "0.1.7"
 
 [env]

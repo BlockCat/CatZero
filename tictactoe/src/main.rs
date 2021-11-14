@@ -1,41 +1,149 @@
-extern crate catzero;
-extern crate hashbrown;
-extern crate mcts;
+use core::time;
 
+use catzero::{CatZeroModel, Player, Tensor};
+use mcts::tree_policy::AlphaGoPolicy;
+use mcts::{transposition_table::ApproxTable, Moves};
+use mcts::{GameState, MCTSManager};
+use tictactoe::TicTacToeState;
+use tmcts::TicTacToeMCTS;
+
+mod evaluator;
 mod tictactoe;
+mod tmcts;
 
-use tictactoe::*;
-use catzero::game::AlphaAgent;
-use catzero::AlphaZero;
+const EXPLORATION: f64 = 1.4;
+const GAMES_TO_PLAY: usize = 100;
+const PLAYOUTS: usize = 10;
+
+const EPISODES: usize = 1;
+const BATCH_SIZE: u32 = 10;
+const EPOCHS: u32 = 10;
 
 fn main() {
-
     let mut pyenv = catzero::PyEnv::new();
     let python = pyenv.python();
-    
-    //let nn1 = catzero::CatZeroModel::load(&python, "player_agent.h5", (1, 3, 3)).unwrap();
 
-    let nn1 = catzero::CatZeroModel::new(&python, (5, 3, 3), (1, 3, 3), 0.1, 5)
-        .expect("Could not create neural model");
-    //let nn2 = catzero::CatZeroModel::new(&python, (5, 3, 3), (1, 3, 3), 0.1, 5).expect("Could not create neural model");
+    let search_player = Player::Player1;
 
-    let agent1 = AlphaAgent::new(&nn1, 0.2f32);
-    let agent2 = AlphaAgent::new(&nn1, 0.2f32);    
+    println!("Creating model");
 
-    let mut alphazero = AlphaZero::<TicTacToeAction, TicTacToeState>::new(agent1, agent2);
-    for _ in 0..2 {
-        alphazero.start(1, 10);
-        let mut ttt = TicTacToe::new(AlphaAgent::new(&nn1, 0.2f32), AlphaAgent::new(&nn1, 0.2f32));
-        
-        ttt.do_print(true);
-        ttt.start();
-        nn1.save("player_agent.h5").unwrap();
+    let mut nn1 = catzero::CatZeroModel::new(&python, (3, 3, 3), (1, 3, 3), 1.0, 3)
+        .expect("Could not create new model");
+    // let mut nn1 = catzero::CatZeroModel::load(&python, "player_agent.h5", (1, 3, 3)).unwrap();
+
+    println!("Create model");
+
+    let mut results = Vec::new();
+    for episode in 0..EPISODES {
+        println!("Starting episode: {}", episode);
+        for _ in 0..GAMES_TO_PLAY {
+            println!("Starting a game");
+            results.push(play_a_game(&nn1));
+            println!("Played a game");
+        }
+
+        let inputs: Vec<Tensor<u8>> = results
+            .iter()
+            .flat_map(|result| result.histories.iter())
+            .map(|(state, _)| state.into())
+            .collect();
+
+        println!("Collected: {} states in {} games, during episode {}", inputs.len(), GAMES_TO_PLAY, episode);
+
+        let probs: Vec<Tensor<f32>> = results
+            .iter()
+            .flat_map(|result| result.histories.iter())
+            .map(|(_, tensor)| tensor.clone())
+            .collect();
+
+        let rewards: Vec<f32> = results
+            .iter()
+            .map(|result| &result.winner)
+            .map(|winner| match winner {
+                Some(player) if player == &search_player => 1.0,
+                Some(_) => -1.0,
+                None => 0.0,
+            })
+            .collect();
+
+        nn1.save("player_agent.h5").expect("Could not save");
+
+        match nn1.learn(inputs, probs, rewards, BATCH_SIZE, EPOCHS) {
+            Ok(_) => {}
+            Err(e) => {
+                println!("Errored learning: {:?}", e)
+            }
+        }
+    }
+}
+
+// play a game and a list of states
+fn play_a_game(model: &CatZeroModel) -> GameResult {
+    let mut state = TicTacToeState::default();
+    let manager = tmcts::TicTacToeMCTS::default();
+    let policy = AlphaGoPolicy::new(EXPLORATION);
+    let evaluator = evaluator::MyEvaluator {
+        winner: Player::Player1,
+        model: &model,
+    };
+    // let mut mcts_manager = MCTSManager::new(
+    //     state.clone(),
+    //     manager,
+    //     evaluator,
+    //     policy,
+    //     ApproxTable::new(1024),
+    // );
+
+    let mut histories = Vec::new();
+
+    while !state.is_terminal() {
+        let mut mcts_manager = MCTSManager::new(
+            state.clone(),
+            manager.clone(),
+            evaluator::MyEvaluator {
+                winner: state.current_player(),
+                model: &model,
+            },
+            policy.clone(),
+            ApproxTable::new(1024),
+        );
+
+        mcts_manager.playout_n(PLAYOUTS as u64);
+
+        let info = mcts_manager.principal_variation_info(1)[0];
+
+        let child = info.child().unwrap();
+        let evaluation = child.moves();
+
+        histories.push((state.clone(), moves_to_tensor(evaluation)));
+
+        state.make_move(info.get_move());
     }
 
-    let mut ttt = TicTacToe::new(AlphaAgent::new(&nn1, 0.2f32), AlphaAgent::new(&nn1, 0.2f32));
-        
-    ttt.do_print(true);
-    let winner = ttt.start();
+    GameResult::new(state.get_winner(), histories)
+}
 
-    println!("{:?}", winner);
+fn moves_to_tensor(moves: Moves<TicTacToeMCTS>) -> Tensor<f32> {
+    let mut board = vec![vec![0.0; 3]; 3];
+
+    moves.for_each(|info| {
+        let action = info.get_move();
+        board[action.x][action.y] = *info.move_evaluation() as f32;
+    });
+
+    vec![board]
+}
+
+struct GameResult {
+    histories: Vec<(TicTacToeState, Tensor<f32>)>,
+    winner: Option<Player>,
+}
+
+impl GameResult {
+    pub fn new(
+        winner: Option<Player>,
+        histories: Vec<(TicTacToeState, Tensor<f32>)>,
+    ) -> GameResult {
+        Self { histories, winner }
+    }
 }

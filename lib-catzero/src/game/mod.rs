@@ -1,15 +1,11 @@
-use hashbrown::HashSet;
-use mctse::transposition_table::ApproxTable;
-use mctse::tree_policy::AlphaGoPolicy;
-use mctse::MCTSManager;
-// use mcts::MCTS;
-use model::CatZeroModel;
-use model::Tensor;
+use crate::model::CatZeroModel;
+use crate::{AlphaMCTS, Tensor};
+use mcts::transposition_table::ApproxTable;
+use mcts::tree_policy::AlphaGoPolicy;
+use mcts::{GameState, MCTSManager};
 use std::cell::RefCell;
+use std::marker::PhantomData;
 use std::rc::Rc;
-
-use crate::nmcts::MyEvaluator;
-use crate::nmcts::MyMCTS;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum Player {
@@ -66,7 +62,7 @@ pub trait AlphaZeroState<A>:
     + Into<Vec<Vec<Vec<u8>>>>
     + Default
     + Clone
-    + mctse::GameState<Move = A, Player = Player, MoveList = HashSet<A>>    
+    + GameState<Player = Player, Move = A, MoveList = Vec<A>>
 where
     A: GameAction,
 {
@@ -92,25 +88,23 @@ where
     A: GameAction + Sync,
     S: AlphaZeroState<A> + Sync,
 {
-    model: &'a CatZeroModel<'a>,
-    searcher: MCTSManager<MyMCTS<A, S>>,
+    model: &'a mut CatZeroModel<'a>,
+    exploration: f64,
+    playouts: usize,
+    _phantom: PhantomData<(A, S)>,
 }
+
 impl<'a, A, S> AlphaAgent<'a, A, S>
 where
     A: GameAction + Sync,
     S: AlphaZeroState<A> + Sync,
 {
-    pub fn new(model: &'a CatZeroModel<'a>, state: &S, exploration: f64) -> Self {
-        let searcher = MCTSManager::new(
-            state.clone(),
-            MyMCTS(Default::default(), Default::default()),
-            MyEvaluator,
-            AlphaGoPolicy::new(exploration),
-            ApproxTable::new(1024),
-        );
+    pub fn new(model: &'a mut CatZeroModel<'a>, exploration: f64, playouts: usize) -> Self {
         AlphaAgent {
-            model: model,
-            searcher,
+            model,
+            exploration,
+            playouts,
+            _phantom: Default::default(),
         }
     }
 
@@ -118,22 +112,39 @@ where
         self.model.save(path).expect("Could not save model");
     }
 
-    pub fn learn(&self, tensors: Vec<Tensor<u8>>, probs: Vec<Tensor<f32>>, rewards: Vec<f32>) {
+    pub fn learn(&mut self, tensors: Vec<Tensor<u8>>, probs: Vec<Tensor<f32>>, rewards: Vec<f32>) {
         self.model
             .learn(tensors, probs, rewards, 3, 1)
             .expect("Could not learn game!");
     }
 
     pub fn get_alpha_action(&mut self, state: S) -> Option<(A, Tensor<f32>)> {
-        self.searcher.switch_state(state);
-        let x = self.searcher.best_move()?;
-        let probs = self.searcher.tree().root_node().moves().map(|m| {
-            (*m.move_evaluation()) as f32
-        }).collect::<Vec<_>>();
-        
+        let mut mcts = MCTSManager::new(
+            state,
+            AlphaMCTS::default(),
+            self.model,
+            AlphaGoPolicy::new(self.exploration),
+            ApproxTable::new(1024),
+        );
+
+        mcts.playout_n(self.playouts as u64);
+
+        let moves = *mcts
+            .principal_variation_info(1)
+            .first()
+            .expect("Could not find move");
+
+        let mov = moves.get_move();
+        let probs = moves
+            .child()
+            .unwrap()
+            .moves()
+            .map(|m| (*m.move_evaluation()) as f32)
+            .collect::<Vec<_>>();
+
         let probs = vec![vec![probs]];
-        
-        Some((x, probs))
+
+        Some((mov.clone(), probs))
     }
 }
 impl<'a, A, S> Agent<A, S> for AlphaAgent<'a, A, S>
