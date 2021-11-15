@@ -63,6 +63,7 @@ dependencies = [
  "cpython",
  "hashbrown",
  "mcts",
+ "tensorflow",
 ]
 
 [[package]]

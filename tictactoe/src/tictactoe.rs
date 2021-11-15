@@ -124,16 +124,51 @@ impl GameState for TicTacToeState {
     }
 }
 
+impl Into<tensorflow::Tensor<f32>> for TicTacToeState {
+    fn into(self) -> tensorflow::Tensor<f32> {
+        let mut tensor = tensorflow::Tensor::new(&[1, 3, 3, 3]);
+
+        let cross_plane = self
+            .board
+            .iter()
+            .flatten()
+            .map(|cell| (cell == &Some(Player::Player1)) as u8 as f32);
+
+        let circle_plane = self
+            .board
+            .iter()
+            .flatten()
+            .map(|cell| (cell == &Some(Player::Player2)) as u8 as f32);
+
+        let turn_plane = match self.current_player {
+            Player::Player1 => vec![vec![0f32; 3]; 3].into_iter().flatten(),
+            Player::Player2 => vec![vec![1f32; 3]; 3].into_iter().flatten(),
+        };
+
+        let l = cross_plane
+            .chain(circle_plane)
+            .chain(turn_plane)
+            .collect::<Vec<f32>>();
+
+        for (index, v) in l.into_iter().enumerate() {
+            tensor[index] = v;
+        }
+
+        tensor
+    }
+}
+
 // Create input
 impl Into<Tensor<u8>> for &TicTacToeState {
     fn into(self) -> Tensor<u8> {
-        let cross_plane = self.board
+        let cross_plane = self
+            .board
             .iter()
             .map(|row| {
                 row.into_iter()
                     .map(|cell| (cell == &Some(Player::Player1)) as u8)
                     .collect()
-            })            
+            })
             .collect();
         let circle_plane = self
             .board
@@ -144,7 +179,7 @@ impl Into<Tensor<u8>> for &TicTacToeState {
                     .collect()
             })
             .collect();
-        
+
         let turn_plane = match self.current_player {
             Player::Player1 => vec![vec![0u8; 3]; 3],
             Player::Player2 => vec![vec![1u8; 3]; 3],

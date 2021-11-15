@@ -1,12 +1,14 @@
 use core::time;
 
-use catzero::{CatZeroModel, Player, Tensor};
+use catzero::{CatZeroModel, Player, TFModel, Tensor};
 use mcts::tree_policy::AlphaGoPolicy;
 use mcts::{transposition_table::ApproxTable, Moves};
 use mcts::{GameState, MCTSManager};
 use tensorflow::{Graph, SavedModelBundle, SessionOptions, SessionRunArgs};
 use tictactoe::TicTacToeState;
 use tmcts::TicTacToeMCTS;
+
+use crate::tictactoe::TicTacToeAction;
 
 mod evaluator;
 mod tictactoe;
@@ -67,65 +69,24 @@ fn main() {
     // }
 }
 
-fn load_graph_model(path: &str) {
-    let mut graph = Graph::new();
-    let bundle = SavedModelBundle::load(&SessionOptions::new(), &["serve"], &mut graph, path)
-        .expect("Could not load");
+fn load_graph_model(path: &str) -> TFModel {
+    let model = catzero::TFModel::load(path).expect("Could not load");
 
-    let default_sig = bundle
-        .meta_graph_def()
-        .get_signature("serving_default")
-        .unwrap();
+    // println!("Model: {:?}", model);
 
-    let input = default_sig
-        .get_input("input_1")
-        .expect("Could not get input");
+    // let input_tensor: tensorflow::Tensor<f32> = tensorflow::Tensor::new(&[1, 3, 3, 3]);
+    let mut root_state = TicTacToeState::default();
+    root_state.make_move(&TicTacToeAction { x: 0, y: 0 });
+    let input_tensor = root_state.into();
 
-    let policy_output = default_sig
-        .get_output("policy_h")
-        .expect("Could not get policy output");
-    let value_output = default_sig
-        .get_output("activation_10")
-        .expect("Could not get activation?");
-    // println!("Sigs: {:#?}", default_sig);
-    println!("Name: {}", default_sig.method_name());
-    println!("Inputs: {:?}: ", input);
-    println!("Output policy: {:?}", policy_output);
-    println!("Output value: {:?}", value_output);
+    let ev = model.evaluate(input_tensor).expect("Could not validate");
 
-    let op_input = graph
-        .operation_by_name_required(&input.name().name)
-        .expect("Could not get graph operation");
+    let a: f32 = ev.value[0];
+    let b: Vec<f32> = ev.policy.iter().cloned().collect();
+    println!("A: {:?}", a);
+    println!("B: {:?}", b);
 
-    let op_output_policy = graph
-        .operation_by_name_required(&policy_output.name().name)
-        .expect("Could not get policy output operation");
-
-    let op_output_value = graph
-        .operation_by_name_required(&value_output.name().name)
-        .expect("Could not get value output operation");
-
-    println!("op input: {:?}", op_input);
-    println!("op output 1: {:?}", op_output_policy);
-    println!("op output 2: {:?}", op_output_value);
-
-    let input: tensorflow::Tensor<f32> = tensorflow::Tensor::new(&[1, 3, 3, 3]);
-
-    {
-        let mut evaluate_step = SessionRunArgs::new();
-
-        evaluate_step.add_feed(&op_input, 0, &input);
-        let token1 = evaluate_step.request_fetch(&op_output_value, 0);
-        let token2 = evaluate_step.request_fetch(&op_output_policy, 1);
-
-        bundle.session.run(&mut evaluate_step).expect("it to work");
-
-        let a: f32 = evaluate_step.fetch(token1).expect("Could not get token1")[0];
-        let b: tensorflow::Tensor<f32> = evaluate_step.fetch(token2).expect("Could not get token1");
-        let b = b.into_iter().cloned().collect::<Vec<_>>();
-        println!("A: {:?}", a);
-        println!("B: {:?}", b);
-    }
+    model
 }
 
 // play a game and a list of states

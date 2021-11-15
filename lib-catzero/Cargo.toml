@@ -9,6 +9,7 @@ cpython = { version = "0.7.0", features = ["python-3-9"], default-features = fal
 # cpython = { version = "0.7.0"} 
 mcts = { path = "../mcts" }
 hashbrown = "0.1.7"
+tensorflow = { version = "0.17.0", features=["tensorflow_gpu"] }
 
 [env]
 PYTHONHOME = "C:\\tools\\miniconda3\\envs\\tensorflow"
