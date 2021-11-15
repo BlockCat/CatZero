@@ -4,6 +4,7 @@ use catzero::{CatZeroModel, Player, Tensor};
 use mcts::tree_policy::AlphaGoPolicy;
 use mcts::{transposition_table::ApproxTable, Moves};
 use mcts::{GameState, MCTSManager};
+use tensorflow::{Graph, SavedModelBundle, SessionOptions, SessionRunArgs};
 use tictactoe::TicTacToeState;
 use tmcts::TicTacToeMCTS;
 
@@ -20,60 +21,110 @@ const BATCH_SIZE: u32 = 10;
 const EPOCHS: u32 = 10;
 
 fn main() {
-    let mut pyenv = catzero::PyEnv::new();
-    let python = pyenv.python();
+    load_graph_model("tictactoe/models/graph");
 
-    let search_player = Player::Player1;
+    // let mut results = Vec::new();
+    // for episode in 0..EPISODES {
+    //     println!("Starting episode: {}", episode);
+    //     for _ in 0..GAMES_TO_PLAY {
+    //         println!("Starting a game");
+    //         results.push(play_a_game(&nn1));
+    //         println!("Played a game");
+    //     }
 
-    println!("Creating model");
+    //     let inputs: Vec<Tensor<u8>> = results
+    //         .iter()
+    //         .flat_map(|result| result.histories.iter())
+    //         .map(|(state, _)| state.into())
+    //         .collect();
 
-    let mut nn1 = catzero::CatZeroModel::new(&python, (3, 3, 3), (1, 3, 3), 1.0, 3)
-        .expect("Could not create new model");
-    // let mut nn1 = catzero::CatZeroModel::load(&python, "player_agent.h5", (1, 3, 3)).unwrap();
+    //     println!("Collected: {} states in {} games, during episode {}", inputs.len(), GAMES_TO_PLAY, episode);
 
-    println!("Create model");
+    //     let probs: Vec<Tensor<f32>> = results
+    //         .iter()
+    //         .flat_map(|result| result.histories.iter())
+    //         .map(|(_, tensor)| tensor.clone())
+    //         .collect();
 
-    let mut results = Vec::new();
-    for episode in 0..EPISODES {
-        println!("Starting episode: {}", episode);
-        for _ in 0..GAMES_TO_PLAY {
-            println!("Starting a game");
-            results.push(play_a_game(&nn1));
-            println!("Played a game");
-        }
+    //     let rewards: Vec<f32> = results
+    //         .iter()
+    //         .map(|result| &result.winner)
+    //         .map(|winner| match winner {
+    //             Some(player) if player == &search_player => 1.0,
+    //             Some(_) => -1.0,
+    //             None => 0.0,
+    //         })
+    //         .collect();
 
-        let inputs: Vec<Tensor<u8>> = results
-            .iter()
-            .flat_map(|result| result.histories.iter())
-            .map(|(state, _)| state.into())
-            .collect();
+    //     nn1.save("player_agent.h5").expect("Could not save");
 
-        println!("Collected: {} states in {} games, during episode {}", inputs.len(), GAMES_TO_PLAY, episode);
+    //     match nn1.learn(inputs, probs, rewards, BATCH_SIZE, EPOCHS) {
+    //         Ok(_) => {}
+    //         Err(e) => {
+    //             println!("Errored learning: {:?}", e)
+    //         }
+    //     }
+    // }
+}
 
-        let probs: Vec<Tensor<f32>> = results
-            .iter()
-            .flat_map(|result| result.histories.iter())
-            .map(|(_, tensor)| tensor.clone())
-            .collect();
+fn load_graph_model(path: &str) {
+    let mut graph = Graph::new();
+    let bundle = SavedModelBundle::load(&SessionOptions::new(), &["serve"], &mut graph, path)
+        .expect("Could not load");
 
-        let rewards: Vec<f32> = results
-            .iter()
-            .map(|result| &result.winner)
-            .map(|winner| match winner {
-                Some(player) if player == &search_player => 1.0,
-                Some(_) => -1.0,
-                None => 0.0,
-            })
-            .collect();
+    let default_sig = bundle
+        .meta_graph_def()
+        .get_signature("serving_default")
+        .unwrap();
 
-        nn1.save("player_agent.h5").expect("Could not save");
+    let input = default_sig
+        .get_input("input_1")
+        .expect("Could not get input");
 
-        match nn1.learn(inputs, probs, rewards, BATCH_SIZE, EPOCHS) {
-            Ok(_) => {}
-            Err(e) => {
-                println!("Errored learning: {:?}", e)
-            }
-        }
+    let policy_output = default_sig
+        .get_output("policy_h")
+        .expect("Could not get policy output");
+    let value_output = default_sig
+        .get_output("activation_10")
+        .expect("Could not get activation?");
+    // println!("Sigs: {:#?}", default_sig);
+    println!("Name: {}", default_sig.method_name());
+    println!("Inputs: {:?}: ", input);
+    println!("Output policy: {:?}", policy_output);
+    println!("Output value: {:?}", value_output);
+
+    let op_input = graph
+        .operation_by_name_required(&input.name().name)
+        .expect("Could not get graph operation");
+
+    let op_output_policy = graph
+        .operation_by_name_required(&policy_output.name().name)
+        .expect("Could not get policy output operation");
+
+    let op_output_value = graph
+        .operation_by_name_required(&value_output.name().name)
+        .expect("Could not get value output operation");
+
+    println!("op input: {:?}", op_input);
+    println!("op output 1: {:?}", op_output_policy);
+    println!("op output 2: {:?}", op_output_value);
+
+    let input: tensorflow::Tensor<f32> = tensorflow::Tensor::new(&[1, 3, 3, 3]);
+
+    {
+        let mut evaluate_step = SessionRunArgs::new();
+
+        evaluate_step.add_feed(&op_input, 0, &input);
+        let token1 = evaluate_step.request_fetch(&op_output_value, 0);
+        let token2 = evaluate_step.request_fetch(&op_output_policy, 1);
+
+        bundle.session.run(&mut evaluate_step).expect("it to work");
+
+        let a: f32 = evaluate_step.fetch(token1).expect("Could not get token1")[0];
+        let b: tensorflow::Tensor<f32> = evaluate_step.fetch(token2).expect("Could not get token1");
+        let b = b.into_iter().cloned().collect::<Vec<_>>();
+        println!("A: {:?}", a);
+        println!("B: {:?}", b);
     }
 }
 

@@ -9,6 +9,11 @@ catzero = {path = "../lib-catzero"}
 mcts = { path = "../mcts" }
 rand = "0.4"
 hashbrown = "0.1.7"
+tensorflow = { version = "0.17.0", features=["tensorflow_gpu"] }
+
+[build-dependencies]
+catzero = {path = "../lib-catzero"}
+
 
 [env]
 PYTHONHOME = "C:\\tools\\miniconda3\\envs\\tensorflow"
