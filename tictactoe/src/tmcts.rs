@@ -1,14 +1,8 @@
-use std::fmt::Display;
-use std::marker::PhantomData;
-
-use catzero::Player;
-use catzero::CatZeroModel;
-use mcts::transposition_table::*;
-use mcts::tree_policy::*;
-use mcts::*;
-
 use crate::evaluator::MyEvaluator;
 use crate::tictactoe::TicTacToeState;
+use catzero::Player;
+use mcts::{transposition_table::ApproxTable, tree_policy::AlphaGoPolicy, CycleBehaviour, MCTS};
+use std::marker::PhantomData;
 
 #[derive(Default, Clone)]
 pub struct TicTacToeMCTS<'a>(PhantomData<&'a Player>);

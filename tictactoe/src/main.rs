@@ -1,9 +1,10 @@
 use core::time;
 
 use catzero::{CatZeroModel, Player, TFModel, Tensor};
-use mcts::tree_policy::AlphaGoPolicy;
+use mcts::tree_policy::{AlphaGoPolicy, UCTPolicy};
 use mcts::{transposition_table::ApproxTable, Moves};
 use mcts::{GameState, MCTSManager};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tensorflow::{Graph, SavedModelBundle, SessionOptions, SessionRunArgs};
 use tictactoe::TicTacToeState;
 use tmcts::TicTacToeMCTS;
@@ -14,59 +15,89 @@ mod evaluator;
 mod tictactoe;
 mod tmcts;
 
-const EXPLORATION: f64 = 1.4;
-const GAMES_TO_PLAY: usize = 100;
-const PLAYOUTS: usize = 10;
+const EXPLORATION: f64 = 10.4;
+const GAMES_TO_PLAY: usize = 60;
+const PLAYOUTS: usize = 200;
 
-const EPISODES: usize = 1;
+const EPISODES: usize = 10;
 const BATCH_SIZE: u32 = 10;
-const EPOCHS: u32 = 10;
+const EPOCHS: u32 = 100;
 
 fn main() {
-    load_graph_model("tictactoe/models/graph");
+    let mut pyenv = catzero::PyEnv::new();
+    let python = pyenv.python();
+    let mut python_model = catzero::CatZeroModel::new(
+        &python,
+        (3, 3, 3),
+        (1, 3, 3),
+        0.001,
+        1.0,
+        3,
+        String::from("models/graph"),
+    )
+    .expect("Could not create new model");
 
-    // let mut results = Vec::new();
-    // for episode in 0..EPISODES {
-    //     println!("Starting episode: {}", episode);
-    //     for _ in 0..GAMES_TO_PLAY {
-    //         println!("Starting a game");
-    //         results.push(play_a_game(&nn1));
-    //         println!("Played a game");
-    //     }
+    
+    let search_player = Player::Player1;
 
-    //     let inputs: Vec<Tensor<u8>> = results
-    //         .iter()
-    //         .flat_map(|result| result.histories.iter())
-    //         .map(|(state, _)| state.into())
-    //         .collect();
+    for episode in 0..EPISODES {
+        let model = python_model.to_tf_model(episode).expect("Could not create tensor model");
+    
+        // let mut results = Vec::new();
+        println!("Starting episode: {}", episode);
 
-    //     println!("Collected: {} states in {} games, during episode {}", inputs.len(), GAMES_TO_PLAY, episode);
+        let results = (0..GAMES_TO_PLAY)
+            .into_par_iter()
+            .map(|i| {
+                println!("Starting a game: {}", i);
+                let res = play_a_game(&model);
+                println!("Played a game: {}", i);
+                res
+            })
+            .collect::<Vec<_>>();
 
-    //     let probs: Vec<Tensor<f32>> = results
-    //         .iter()
-    //         .flat_map(|result| result.histories.iter())
-    //         .map(|(_, tensor)| tensor.clone())
-    //         .collect();
+        let inputs: Vec<Tensor<u8>> = results
+            .iter()
+            .flat_map(|result| result.histories.iter())
+            .map(|(state, _)| state.into())
+            .collect();
 
-    //     let rewards: Vec<f32> = results
-    //         .iter()
-    //         .map(|result| &result.winner)
-    //         .map(|winner| match winner {
-    //             Some(player) if player == &search_player => 1.0,
-    //             Some(_) => -1.0,
-    //             None => 0.0,
-    //         })
-    //         .collect();
+        println!(
+            "Collected: {} states in {} games, during episode {}",
+            inputs.len(),
+            GAMES_TO_PLAY,
+            episode
+        );
 
-    //     nn1.save("player_agent.h5").expect("Could not save");
+        let probs: Vec<Tensor<f32>> = results
+            .iter()
+            .flat_map(|result| result.histories.iter())
+            .map(|(_, tensor)| tensor.clone())
+            .collect();
 
-    //     match nn1.learn(inputs, probs, rewards, BATCH_SIZE, EPOCHS) {
-    //         Ok(_) => {}
-    //         Err(e) => {
-    //             println!("Errored learning: {:?}", e)
-    //         }
-    //     }
-    // }
+        let rewards: Vec<f32> = results
+            .iter()
+            .flat_map(|result| {
+                let reward = match &result.winner {
+                    Some(player) if player == &search_player => 1.0,
+                    Some(_) => -1.0,
+                    None => 0.0,
+                };
+                result.histories.iter().map(move |_| reward)
+            })
+            .collect();
+
+        assert!(inputs.len() == probs.len());
+        assert!(inputs.len() == rewards.len());
+
+        match python_model.learn(inputs, probs, rewards, BATCH_SIZE, EPOCHS) {
+            Ok(_) => { println!("Learned an episode: {}", episode)}
+            Err(e) => {
+                println!("Errored learning: {:?}", e);
+                panic!("Failed learning")
+            }
+        }
+    }
 }
 
 fn load_graph_model(path: &str) -> TFModel {
@@ -90,14 +121,12 @@ fn load_graph_model(path: &str) -> TFModel {
 }
 
 // play a game and a list of states
-fn play_a_game(model: &CatZeroModel) -> GameResult {
+fn play_a_game(model: &TFModel) -> GameResult {
     let mut state = TicTacToeState::default();
     let manager = tmcts::TicTacToeMCTS::default();
+    // let policy = AlphaGoPolicy::new(EXPLORATION);
     let policy = AlphaGoPolicy::new(EXPLORATION);
-    let evaluator = evaluator::MyEvaluator {
-        winner: Player::Player1,
-        model: &model,
-    };
+
     // let mut mcts_manager = MCTSManager::new(
     //     state.clone(),
     //     manager,
@@ -120,7 +149,7 @@ fn play_a_game(model: &CatZeroModel) -> GameResult {
             ApproxTable::new(1024),
         );
 
-        mcts_manager.playout_n(PLAYOUTS as u64);
+        mcts_manager.playout_n(PLAYOUTS);
 
         let info = mcts_manager.principal_variation_info(1)[0];
 
@@ -131,6 +160,8 @@ fn play_a_game(model: &CatZeroModel) -> GameResult {
 
         state.make_move(info.get_move());
     }
+
+    println!("final: {}", state);
 
     GameResult::new(state.get_winner(), histories)
 }

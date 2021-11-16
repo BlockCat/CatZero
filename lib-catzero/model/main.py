@@ -1,5 +1,6 @@
 
 # if __name__ == "__main__":
+import tensorflow as tf
 import numpy as np
 import keras
 import builtins as bb
@@ -76,12 +77,14 @@ def evaluate(tensor, model: Model, output_shape):
     return (reward, action_probs)
 
 def save_model(path, model: Model):
+
     model.save(path)
 
 def load_model(path):
     return keras.models.load_model(path)
 
-def create_model(input_shape, output_shape, reg_const, res_blocks) -> Model:
+def create_model(input_shape, output_shape, learning_rate, reg_const, res_blocks) -> Model:
+
     # Create the input layer
     nn_input = input_block(input_shape)
 
@@ -103,7 +106,7 @@ def create_model(input_shape, output_shape, reg_const, res_blocks) -> Model:
     model = Model(inputs=[nn_input], outputs=[policy_h, value_h])
 
     # Apply optimizer
-    sgd = SGD(lr=0.2, momentum=0, decay=0, nesterov=False)
+    sgd = SGD(lr=learning_rate, momentum=0, decay=0, nesterov=False)
 
     # Compile model
     model.compile(optimizer=sgd,

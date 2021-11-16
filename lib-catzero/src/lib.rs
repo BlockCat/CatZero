@@ -19,15 +19,3 @@ pub use tf::TFModel;
 
 #[derive(Debug, Default)]
 pub struct AlphaMCTS<'a, S>(PhantomData<&'a S>);
-
-impl<'a, S> MCTS for AlphaMCTS<'a, S>
-where
-    S: GameState + Hash + Sync,
-{
-    type State = S;
-    type Eval = &'a CatZeroModel<'a>;
-    type TreePolicy = AlphaGoPolicy;
-    type NodeData = ();
-    type TranspositionTable = ApproxTable<Self>;
-    type ExtraThreadData = ();
-}

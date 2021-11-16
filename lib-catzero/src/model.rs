@@ -1,7 +1,5 @@
+use crate::TFModel;
 use cpython::{PyModule, PyObject, PyResult, Python};
-use mcts::{Evaluator, GameState, MCTS};
-
-use crate::AlphaMCTS;
 
 // macro_rules! py_import {
 //     ($module:ident, $python:ident, from $modu:ident.$path:tt import $($name:tt), *) => {
@@ -17,45 +15,9 @@ pub struct CatZeroModel<'a> {
     python: &'a Python<'a>,
     module: PyModule,
     model: PyObject,
+    path: String,
     output_shape: (u32, u32, u32),
 }
-
-impl<'a, S> Evaluator<AlphaMCTS<'a, S>> for &'a CatZeroModel<'a>
-where
-    S: GameState + std::hash::Hash + Sync,
-{
-    type StateEvaluation = f64;
-
-    fn evaluate_new_state(
-        &self,
-        state: &<AlphaMCTS<'a, S> as MCTS>::State,
-        moves: &mcts::MoveList<AlphaMCTS<'_, S>>,
-        handle: Option<mcts::SearchHandle<AlphaMCTS<'_, S>>>,
-    ) -> (
-        Vec<mcts::MoveEvaluation<AlphaMCTS<'_, S>>>,
-        Self::StateEvaluation,
-    ) {
-        todo!()
-    }
-
-    fn evaluate_existing_state(
-        &self,
-        state: &<AlphaMCTS<'a, S> as MCTS>::State,
-        existing_evaln: &Self::StateEvaluation,
-        handle: mcts::SearchHandle<AlphaMCTS<'_, S>>,
-    ) -> Self::StateEvaluation {
-        *existing_evaln
-    }
-
-    fn interpret_evaluation_for_player(
-        &self,
-        evaluation: &Self::StateEvaluation,
-        player: &mcts::Player<AlphaMCTS<'_, S>>,
-    ) -> i64 {
-        (*evaluation * 100f64) as i64
-    }
-}
-
 
 impl<'a> CatZeroModel<'a> {
     // TODO: Make sure to change output shape into a tuple because thatś nicer to work with
@@ -64,8 +26,10 @@ impl<'a> CatZeroModel<'a> {
         python: &'a Python,
         input_shape: (u32, u32, u32),
         output_shape: (u32, u32, u32),
+        learning_rate: f32,
         reg_constant: f32,
         residual_blocks: u32,
+        path: String,
     ) -> PyResult<Self> {
         let module = CatZeroModel::create_module(python)?;
         let model = module.call(
@@ -74,6 +38,7 @@ impl<'a> CatZeroModel<'a> {
             (
                 (python.None(), input_shape.0, input_shape.1, input_shape.2),
                 output_shape.0 * output_shape.1 * output_shape.2,
+                learning_rate,
                 reg_constant,
                 residual_blocks,
             ),
@@ -84,6 +49,7 @@ impl<'a> CatZeroModel<'a> {
             python,
             module,
             model,
+            path,
             output_shape,
         })
     }
@@ -110,7 +76,6 @@ impl<'a> CatZeroModel<'a> {
     }
 
     pub fn evaluate(&self, tensor: Tensor<u8>) -> PyResult<(f32, Tensor<f32>)> {
-        
         let pyres = self
             .module
             .call(
@@ -126,6 +91,15 @@ impl<'a> CatZeroModel<'a> {
             .expect("Could not extract rust types from python");
 
         Ok((value, tensor))
+    }
+
+    pub fn to_tf_model(&self, index: usize) -> Result<TFModel, String> {
+        let path = self.create_path(index);
+
+        self.save(index)
+            .map_err(|e| format!("Python Error: {:?}", e))?;
+
+        TFModel::load(&path).map_err(|e| format!("Tensor error: {:?}", e))
     }
 
     pub fn learn(
@@ -149,12 +123,15 @@ impl<'a> CatZeroModel<'a> {
     pub fn load(
         python: &'a Python,
         path: &str,
+        index: usize,
         output_shape: (u32, u32, u32),
     ) -> PyResult<CatZeroModel<'a>> {
+        let root_path = path.to_string();
         let path = {
             let mut path_buf = std::path::PathBuf::new();
             path_buf.push(std::env::current_dir().unwrap());
-            path_buf.push(path);
+            path_buf.push(path.clone());
+            path_buf.push(index.to_string());
             String::from(path_buf.to_str().unwrap())
         };
 
@@ -166,21 +143,28 @@ impl<'a> CatZeroModel<'a> {
             module,
             model,
             output_shape,
+            path: root_path,
         })
     }
 
-    pub fn save(&self, path: &str) -> PyResult<()> {
-        let mut path_buf = std::path::PathBuf::new();
-        path_buf.push(std::env::current_dir().unwrap());
-        path_buf.push(path);
+    pub fn save(&self, index: usize) -> PyResult<()> {
+        let path_buf = self.create_path(index);
 
-        self.module.call(
-            *self.python,
-            "save_model",
-            (path_buf.to_str().unwrap(), &self.model),
-            None,
-        )?;
+        self.module
+            .call(*self.python, "save_model", (path_buf, &self.model), None)?;
 
         Ok(())
+    }
+
+    fn create_path(&self, index: usize) -> String {
+        let mut path_buf = std::path::PathBuf::new();
+        path_buf.push(std::env::current_dir().unwrap());
+        path_buf.push(&self.path);
+        path_buf.push(index.to_string());
+
+        path_buf
+            .to_str()
+            .expect("Could not create path")
+            .to_string()
     }
 }

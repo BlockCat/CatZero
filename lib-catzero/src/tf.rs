@@ -1,5 +1,5 @@
-use tensorflow::{Result, SessionRunArgs, Tensor};
 use tensorflow::{Graph, SavedModelBundle, SessionOptions};
+use tensorflow::{Result, SessionRunArgs, Tensor};
 
 #[derive(Debug)]
 pub struct TFModel {
@@ -44,6 +44,8 @@ impl TFModel {
             .operation_by_name_required(&value_output.name().name)
             .expect("Could not get value output operation");
 
+        println!("sigs: {:#?}", bundle.meta_graph_def().signatures());
+
         Ok(Self {
             graph,
             bundle,
@@ -65,13 +67,22 @@ impl TFModel {
         let value = session.fetch(token1)?;
         let policy = session.fetch(token2)?;
 
-        Ok(TFEvaluation {
-            policy,
-            value
-        })
+        Ok(TFEvaluation { policy, value })
     }
 
-    
+    // pub fn learn(&mut self, steps: usize) -> Result<()> {
+    //     let me = self.bundle.meta_graph_def();
+
+    //     let mut session = SessionRunArgs::new();
+
+    //     session.add_feed(&self.op_input, 0, &input);
+
+    //     for _ in 0..steps {
+    //         self.bundle.session.run(&mut session);
+    //     }
+
+    //     Ok(())
+    // }
 }
 
 pub struct TFEvaluation {

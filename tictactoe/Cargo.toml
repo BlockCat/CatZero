@@ -10,6 +10,7 @@ mcts = { path = "../mcts" }
 rand = "0.4"
 hashbrown = "0.1.7"
 tensorflow = { version = "0.17.0", features=["tensorflow_gpu"] }
+rayon = "1.5.1"
 
 [build-dependencies]
 catzero = {path = "../lib-catzero"}

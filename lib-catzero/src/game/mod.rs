@@ -94,69 +94,69 @@ where
     _phantom: PhantomData<(A, S)>,
 }
 
-impl<'a, A, S> AlphaAgent<'a, A, S>
-where
-    A: GameAction + Sync,
-    S: AlphaZeroState<A> + Sync,
-{
-    pub fn new(model: &'a mut CatZeroModel<'a>, exploration: f64, playouts: usize) -> Self {
-        AlphaAgent {
-            model,
-            exploration,
-            playouts,
-            _phantom: Default::default(),
-        }
-    }
+// impl<'a, A, S> AlphaAgent<'a, A, S>
+// where
+//     A: GameAction + Sync,
+//     S: AlphaZeroState<A> + Sync,
+// {
+//     pub fn new(model: &'a mut CatZeroModel<'a>, exploration: f64, playouts: usize) -> Self {
+//         AlphaAgent {
+//             model,
+//             exploration,
+//             playouts,
+//             _phantom: Default::default(),
+//         }
+//     }
 
-    pub fn save(&self, path: &str) {
-        self.model.save(path).expect("Could not save model");
-    }
+//     pub fn save(&self, path: &str) {
+//         self.model.save(path).expect("Could not save model");
+//     }
 
-    pub fn learn(&mut self, tensors: Vec<Tensor<u8>>, probs: Vec<Tensor<f32>>, rewards: Vec<f32>) {
-        self.model
-            .learn(tensors, probs, rewards, 3, 1)
-            .expect("Could not learn game!");
-    }
+//     pub fn learn(&mut self, tensors: Vec<Tensor<u8>>, probs: Vec<Tensor<f32>>, rewards: Vec<f32>) {
+//         self.model
+//             .learn(tensors, probs, rewards, 3, 1)
+//             .expect("Could not learn game!");
+//     }
 
-    pub fn get_alpha_action(&mut self, state: S) -> Option<(A, Tensor<f32>)> {
-        let mut mcts = MCTSManager::new(
-            state,
-            AlphaMCTS::default(),
-            self.model,
-            AlphaGoPolicy::new(self.exploration),
-            ApproxTable::new(1024),
-        );
+//     pub fn get_alpha_action(&mut self, state: S) -> Option<(A, Tensor<f32>)> {
+//         let mut mcts = MCTSManager::new(
+//             state,
+//             AlphaMCTS::default(),
+//             self.model,
+//             AlphaGoPolicy::new(self.exploration),
+//             ApproxTable::new(1024),
+//         );
 
-        mcts.playout_n(self.playouts as u64);
+//         mcts.playout_n(self.playouts as u64);
 
-        let moves = *mcts
-            .principal_variation_info(1)
-            .first()
-            .expect("Could not find move");
+//         let moves = *mcts
+//             .principal_variation_info(1)
+//             .first()
+//             .expect("Could not find move");
 
-        let mov = moves.get_move();
-        let probs = moves
-            .child()
-            .unwrap()
-            .moves()
-            .map(|m| (*m.move_evaluation()) as f32)
-            .collect::<Vec<_>>();
+//         let mov = moves.get_move();
+//         let probs = moves
+//             .child()
+//             .unwrap()
+//             .moves()
+//             .map(|m| (*m.move_evaluation()) as f32)
+//             .collect::<Vec<_>>();
 
-        let probs = vec![vec![probs]];
+//         let probs = vec![vec![probs]];
 
-        Some((mov.clone(), probs))
-    }
-}
-impl<'a, A, S> Agent<A, S> for AlphaAgent<'a, A, S>
-where
-    A: GameAction + Sync,
-    S: AlphaZeroState<A> + Sync,
-{
-    fn get_action(&mut self, state: &S) -> Option<A> {
-        let (action, tensor) = self.get_alpha_action(state.clone())?;
+//         Some((mov.clone(), probs))
+//     }
+// }
+// impl<'a, A, S> Agent<A, S> for AlphaAgent<'a, A, S>
+// where
+//     A: GameAction + Sync,
+//     S: AlphaZeroState<A> + Sync,
+// {
+//     fn get_action(&mut self, state: &S) -> Option<A> {
+//         let (action, tensor) = self.get_alpha_action(state.clone())?;
 
-        println!("tensor: {:?}", tensor);
+//         println!("tensor: {:?}", tensor);
 
-        Some(action)
-    }
-}
+//         Some(action)
+//     }
+// }
