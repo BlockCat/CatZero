@@ -1,9 +1,11 @@
 #![feature(test)]
 
 extern crate test;
+use catzero::TFModel;
+
 use self::test::Bencher;
 
-include!("../src/main.rs");
+include!("../src/lib.rs");
 
 #[bench]
 fn python(b: &mut Bencher) {

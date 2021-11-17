@@ -4,4 +4,4 @@
 __pycache__/
 *.h5
 models/
-data/*.games
+data/

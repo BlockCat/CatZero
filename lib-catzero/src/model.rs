@@ -101,6 +101,28 @@ impl<'a> CatZeroModel<'a> {
 
         TFModel::load(&path).map_err(|e| format!("Tensor error: {:?}", e))
     }
+    pub fn tune(
+        &mut self,
+        data: TrainingData,
+        hyper_epochs: u32,
+        epochs: u32,
+    ) -> PyResult<()> {
+        self.module.call(
+            *self.python,
+            "tune",
+            (
+                &self.model,
+                data.inputs,
+                data.output_policy,
+                data.output_value,
+                hyper_epochs,
+                epochs,
+            ),
+            None,
+        )?;
+
+        Ok(())
+    }
 
     pub fn learn(&mut self, data: TrainingData, batch_size: u32, epochs: u32) -> PyResult<()> {
         self.module.call(
