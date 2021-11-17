@@ -1,5 +1,5 @@
 [package]
-name = "catzero-tictactoe"
+name = "catzero-chess"
 version = "0.1.0"
 authors = ["BlockCat"]
 edition = "2018"
@@ -11,6 +11,7 @@ rand = "0.8.4"
 hashbrown = "0.1.7"
 tensorflow = { version = "0.17.0", features=["tensorflow_gpu"] }
 rayon = "1.5.1"
+chess = "3.2.0"
 
 [build-dependencies]
 catzero = {path = "../lib-catzero"}

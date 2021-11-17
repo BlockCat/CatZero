@@ -44,7 +44,7 @@ impl TFModel {
             .operation_by_name_required(&value_output.name().name)
             .expect("Could not get value output operation");
 
-        println!("sigs: {:#?}", bundle.meta_graph_def().signatures());
+        // println!("sigs: {:#?}", bundle.meta_graph_def().signatures());
 
         Ok(Self {
             graph,

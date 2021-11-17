@@ -103,7 +103,7 @@ impl<'a> CatZeroModel<'a> {
     }
     pub fn tune(
         &mut self,
-        data: TrainingData,
+        data: &TrainingData,
         hyper_epochs: u32,
         epochs: u32,
     ) -> PyResult<()> {
@@ -112,9 +112,9 @@ impl<'a> CatZeroModel<'a> {
             "tune",
             (
                 &self.model,
-                data.inputs,
-                data.output_policy,
-                data.output_value,
+                &data.inputs,
+                &data.output_policy,
+                &data.output_value,
                 hyper_epochs,
                 epochs,
             ),
@@ -124,15 +124,15 @@ impl<'a> CatZeroModel<'a> {
         Ok(())
     }
 
-    pub fn learn(&mut self, data: TrainingData, batch_size: u32, epochs: u32) -> PyResult<()> {
+    pub fn learn(&mut self, data: &TrainingData, batch_size: u32, epochs: u32) -> PyResult<()> {
         self.module.call(
             *self.python,
             "learn",
             (
                 &self.model,
-                data.inputs,
-                data.output_policy,
-                data.output_value,
+                &data.inputs,
+                &data.output_policy,
+                &data.output_value,
                 batch_size,
                 epochs,
             ),

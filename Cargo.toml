@@ -2,5 +2,6 @@
 members = [
     "lib-catzero",
     "tictactoe",
-    "mcts"
+    "mcts",
+    "chess",
 ]

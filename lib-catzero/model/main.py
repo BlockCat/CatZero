@@ -13,6 +13,8 @@ from tensorflow.keras.regularizers import l2
 from tensorflow.python.keras import callbacks
 from tensorflow.python.keras.callbacks import EarlyStopping, TensorBoard
 
+physical_devices = tf.config.list_physical_devices('GPU') 
+tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 def input_block(bs):
     # One plane for player 1
@@ -97,6 +99,8 @@ def tune(model: Model, inputs, probs, values, hyper_epochs, epochs):
 
 
 def learn(model: Model, inputs, probs, values, batch_size, epochs):
+        
+
     probs = np.array(probs)
 
     log_dir = "data/logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
