@@ -1,4 +1,4 @@
-use crate::TFModel;
+use crate::{TFModel, TrainingData};
 use cpython::{PyModule, PyObject, PyResult, Python};
 
 // macro_rules! py_import {
@@ -102,18 +102,18 @@ impl<'a> CatZeroModel<'a> {
         TFModel::load(&path).map_err(|e| format!("Tensor error: {:?}", e))
     }
 
-    pub fn learn(
-        &mut self,
-        inputs: Vec<Tensor<u8>>,
-        probs: Vec<Tensor<f32>>,
-        rewards: Vec<f32>,
-        batch_size: u32,
-        epochs: u32,
-    ) -> PyResult<()> {
+    pub fn learn(&mut self, data: TrainingData, batch_size: u32, epochs: u32) -> PyResult<()> {
         self.module.call(
             *self.python,
             "learn",
-            (&self.model, inputs, probs, rewards, batch_size, epochs),
+            (
+                &self.model,
+                data.inputs,
+                data.output_policy,
+                data.output_value,
+                batch_size,
+                epochs,
+            ),
             None,
         )?;
 

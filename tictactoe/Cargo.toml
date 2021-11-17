@@ -14,8 +14,3 @@ rayon = "1.5.1"
 
 [build-dependencies]
 catzero = {path = "../lib-catzero"}
-
-
-[env]
-PYTHONHOME = "C:\\tools\\miniconda3\\envs\\tensorflow"
-#set PYTHONHOME=C:\tools\miniconda3\envs\tensorflow

@@ -9,7 +9,7 @@ include!("../src/main.rs");
 fn python(b: &mut Bencher) {
     let mut pyenv = catzero::PyEnv::new();
     let python = pyenv.python();
-    let nn1 = catzero::CatZeroModel::new(&python, (3, 3, 3), (1, 3, 3), 1.0, 3, String::from("models/bench"))
+    let nn1 = catzero::CatZeroModel::new(&python, (3, 3, 3), (1, 3, 3), 0.001, 1.0, 3, String::from("models/bench"))
         .expect("Could not create new model");
     
     b.iter(|| {
