@@ -1,18 +1,27 @@
 use catzero::{CatZeroModel, TFModel};
-use mcts::{transposition_table::ApproxTable, tree_policy::AlphaGoPolicy, GameState, MCTSManager};
+use mcts::{
+    transposition_table::ApproxTable,
+    tree_policy::{AlphaGoPolicy, UCTPolicy},
+    GameState, MCTSManager,
+};
 use tictactoe::TicTacToeAction;
 
 include!("../src/lib.rs");
 
-const EXPLORATION: f64 = 0.1;
-const PLAYOUTS: usize = 200;
+const EXPLORATION: f64 = 1.4;
+const PLAYOUTS: usize = 550;
+const MODEL: usize = 18;
 
 fn main() {
-    let tf = TFModel::load("data/models/graph/9").expect("Could not load model");    
+    let tf = TFModel::load(&format!("data/models/graph/{}", MODEL)).expect("Could not load model");
 
     let mut state = TicTacToeState::default();
 
     while !state.is_terminal() {
+        
+        let eval = tf.evaluate(state.clone().into()).expect("Could not validate");
+        println!("{:?}", eval.value[0]);
+
         println!("{}", state);
         let ac = find_npc_action(&state, &tf);
         state.make_move(&ac);
@@ -23,8 +32,8 @@ fn main() {
 
 fn find_npc_action(state: &TicTacToeState, model: &TFModel) -> TicTacToeAction {
     let manager = TicTacToeMCTS::default();
-    let policy = AlphaGoPolicy::new(EXPLORATION);
-
+    let policy = UCTPolicy::new(EXPLORATION);
+    
     let mut mcts_manager = MCTSManager::new(
         state.clone(),
         manager.clone(),
@@ -34,8 +43,11 @@ fn find_npc_action(state: &TicTacToeState, model: &TFModel) -> TicTacToeAction {
         },
         policy.clone(),
         ApproxTable::new(1024),
-    );
-
+    );    
     mcts_manager.playout_n(PLAYOUTS);
+    mcts_manager.tree().debug_moves();
+
+
+    
     mcts_manager.principal_variation(1)[0].clone()
 }

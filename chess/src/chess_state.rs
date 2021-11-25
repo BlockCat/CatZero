@@ -1,21 +1,22 @@
-use chess::{BitBoard, Board, BoardStatus, ChessMove, Color, EMPTY, Game, MoveGen};
+use chess::{Board, BoardStatus, ChessMove, Color, MoveGen};
 use mcts::GameState;
 use tensorflow::Tensor;
 
+use crate::ChessPlayer;
 
 #[derive(Debug, Default, Clone, Hash)]
 pub struct BoardState(Board);
 
 impl GameState for BoardState {
     type Move = ChessMove;
-    type Player = Color;
+    type Player = ChessPlayer;
     type MoveList = Vec<ChessMove>;
 
     fn current_player(&self) -> Self::Player {
-        self.0.side_to_move()
+        ChessPlayer(self.0.side_to_move())
     }
 
-    fn available_moves(&self) -> Self::MoveList {        
+    fn available_moves(&self) -> Self::MoveList {
         if self.0.status() == BoardStatus::Ongoing {
             MoveGen::new_legal(&self.0).collect()
         } else {
@@ -24,12 +25,10 @@ impl GameState for BoardState {
     }
 
     fn make_move(&mut self, mov: &Self::Move) {
-        self.0.make_move(*mov, &mut self.0)
+        self.0 = self.0.make_move_new(*mov)
     }
-}
 
-impl BoardState {
-    pub fn is_terminal(&self) -> bool {
+    fn is_terminal(&self) -> bool {
         match self.0.status() {
             BoardStatus::Ongoing => false,
             BoardStatus::Stalemate => true,
@@ -37,19 +36,15 @@ impl BoardState {
         }
     }
 
-    pub fn get_winner(&self) -> Option<Color> {
-        if self.available_moves().is_empty() {
-            let x  = self.0.checkers();
-
-            if x == &EMPTY {
-                return None;
-            } else {
-                unimplemented!()
-            }
-        } else {
-            return None;
+    fn get_winner(&self) -> Option<Self::Player> {
+        match self.0.status() {
+            BoardStatus::Ongoing => unreachable!(),
+            BoardStatus::Stalemate => None,
+            BoardStatus::Checkmate => match self.current_player().0 {
+                Color::White => Some(ChessPlayer(Color::Black)),
+                Color::Black => Some(ChessPlayer(Color::White)),
+            },
         }
-        
     }
 }
 

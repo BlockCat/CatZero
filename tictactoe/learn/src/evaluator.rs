@@ -1,15 +1,15 @@
 use crate::{tictactoe::TicTacToeState, tmcts::TicTacToeMCTS};
-use catzero::{CatZeroModel, Player, TFModel};
-use mcts::{Evaluator, MoveEvaluation, MoveList, SearchHandle};
+use catzero::{DefaultPlayer, TFModel};
+use mcts::{Evaluator, GameState, MoveEvaluation, MoveList, SearchHandle};
 
 #[derive(Debug, Clone)]
 pub enum StateEval {
-    Winner(Player),
+    Winner(DefaultPlayer),
     Draw,
-    Evaluation(f32),
+    Evaluation(DefaultPlayer, f32),
 }
 pub struct MyEvaluator<'a> {
-    pub winner: Player,
+    pub winner: DefaultPlayer,
     pub model: &'a TFModel,
 }
 
@@ -29,19 +29,19 @@ impl<'a> Evaluator<TicTacToeMCTS<'a>> for MyEvaluator<'a> {
             };
             (Vec::new(), eval)
         } else {
-             let eval = self
+            let eval = self
                 .model
                 .evaluate(state.clone().into())
                 .expect("Help model not working");
 
-            let value = eval.value[0];
-            let policy = eval.policy;
-            let r = StateEval::Evaluation(value);
+            let value = (eval.value)[0];
+            let policy = (eval.policy);
+            let r = StateEval::Evaluation(state.current_player(), value);
 
             let board_evaluations: Vec<f64> = moves
-            .iter()
-            .map(|mov| policy[mov.x + mov.y * 3] as f64)
-            .collect();
+                .iter()
+                .map(|mov| policy[mov.x + mov.y * 3] as f64)
+                .collect();
 
             let sum: f64 = board_evaluations.iter().sum();
             let board_evaluations: Vec<f64> =
@@ -69,7 +69,8 @@ impl<'a> Evaluator<TicTacToeMCTS<'a>> for MyEvaluator<'a> {
             StateEval::Winner(winner) if winner == player => 1.0,
             StateEval::Winner(_) => -1.0,
             StateEval::Draw => 0.0,
-            StateEval::Evaluation(v) => *v as f64,
+            StateEval::Evaluation(current_player, v) if current_player == player => (*v as f64),
+            StateEval::Evaluation(_, v)=> -(*v as f64),
         }
     }
 }

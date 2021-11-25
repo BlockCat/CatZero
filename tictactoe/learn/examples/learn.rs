@@ -1,35 +1,41 @@
 use catzero::{TFModel, TrainingData};
-use mcts::{transposition_table::ApproxTable, tree_policy::AlphaGoPolicy, GameState, MCTSManager};
+use mcts::{transposition_table::ApproxTable, tree_policy::UCTPolicy, GameState, MCTSManager};
+use rand::seq::SliceRandom;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use rand::{prelude::IteratorRandom, seq::SliceRandom};
 
 include!("../src/lib.rs");
 
-const EXPLORATION: f64 = 5.4;
-const GAMES_TO_PLAY: usize = 50;
-const PLAYOUTS: usize = 250;
+const EXPLORATION: f64 = 1.45;
+const GAMES_TO_PLAY: usize = 25;
+const PLAYOUTS: usize = 1000;
 
-const EPISODES: usize = 10;
+const EPISODES: usize = 50;
 const BATCH_SIZE: u32 = 20;
 const EPOCHS: u32 = 100;
 
 fn main() {
     let mut pyenv = catzero::PyEnv::new();
     let python = pyenv.python();
-    let mut python_model = catzero::CatZeroModel::new(
-        &python,
-        (3, 3, 3),
-        (1, 3, 3),
-        0.001,
-        1.0,
-        3,
-        String::from("data/models/graph"),
-    )
-    .expect("Could not create new model");
 
-    let search_player = Player::Player1;
+    let start = 0;
 
-    for episode in 0..EPISODES {
+    let mut python_model = if start == 0 {
+        catzero::CatZeroModel::new(
+            &python,
+            (2, 3, 3),
+            (1, 3, 3),
+            0.001,
+            1.0,
+            3,
+            String::from("data/models/graph"),
+        )
+        .expect("Could not create new model")
+    } else {
+        catzero::CatZeroModel::load(&python, "data/models/graph", start, (1, 3, 3))
+            .expect("Could not load model")
+    };
+
+    for episode in start..EPISODES {
         let model = python_model
             .to_tf_model(episode)
             .expect("Could not create tensor model");
@@ -50,7 +56,7 @@ fn main() {
         let inputs: Vec<Tensor<u8>> = results
             .iter()
             .flat_map(|result| result.histories.iter())
-            .map(|(state, _)| state.into())
+            .map(|(state, _)| state.clone().into())
             .collect();
 
         println!(
@@ -60,32 +66,38 @@ fn main() {
             episode
         );
 
-        let probs: Vec<Tensor<f32>> = results
+        let output_policy: Vec<Tensor<f32>> = results
             .iter()
             .flat_map(|result| result.histories.iter())
             .map(|(_, tensor)| tensor.clone())
             .collect();
 
-        let rewards: Vec<f32> = results
+        let output_value: Vec<f32> = results
             .iter()
             .flat_map(|result| {
-                let reward = match &result.winner {
-                    Some(player) if player == &search_player => 1.0,
-                    Some(_) => -1.0,
-                    None => 0.0,
-                };
-                result.histories.iter().map(move |_| reward)
+                result.histories.iter().map(move |(s, _)| {
+                    match (s.current_player(), &result.winner) {
+                        (DefaultPlayer::Player1, Some(DefaultPlayer::Player1)) => 1.0,
+                        (DefaultPlayer::Player1, Some(DefaultPlayer::Player2)) => -1.0,
+                        (DefaultPlayer::Player2, Some(DefaultPlayer::Player1)) => -1.0,
+                        (DefaultPlayer::Player2, Some(DefaultPlayer::Player2)) => 1.0,
+                        (_, None) => 0.0,
+                    }
+                })
+                // result.histories.iter().map(move |_| reward)
             })
             .collect();
 
-        assert!(inputs.len() == probs.len());
-        assert!(inputs.len() == rewards.len());
+        assert!(inputs.len() == output_policy.len());
+        assert!(inputs.len() == output_value.len());
 
         let data = TrainingData {
-            inputs: inputs,
-            output_policy: probs,
-            output_value: rewards,
+            inputs,
+            output_policy,
+            output_value,
         };
+
+        data.print(0..data.len().min(10));
 
         if let Err(e) = data.save(&format!("data/{}.games", episode)) {
             println!("Did not save game data: {}", e);
@@ -114,7 +126,7 @@ fn play_a_game(model: &TFModel) -> GameResult {
     let mut state = TicTacToeState::default();
     let manager = tmcts::TicTacToeMCTS::default();
     // let policy = AlphaGoPolicy::new(EXPLORATION);
-    let policy = AlphaGoPolicy::new(EXPLORATION);
+    let policy = UCTPolicy::new(EXPLORATION);
 
     let mut histories = Vec::new();
 
@@ -135,13 +147,9 @@ fn play_a_game(model: &TFModel) -> GameResult {
         let root_node = mcts_manager.tree().root_node();
         let moves = root_node.moves().collect::<Vec<_>>();
 
-        {
-            let v = moves.iter().map(|s| s.move_evaluation()).sum::<f64>() - 1.0f64;
-            assert!(v >= -0.001 && v <= 0.001, "Move evaluation should sum up to 1, but sums up to: {}", v);
-        }
-        
-        let weighted_action = moves.choose_weighted(&mut rng, |i| i.move_evaluation()).expect("Could not get a random action");
-    
+        let weighted_action = moves
+            .choose_weighted(&mut rng, |i| i.visits())
+            .expect("Could not get a random action");
 
         histories.push((state.clone(), moves_to_tensor(root_node.moves())));
 

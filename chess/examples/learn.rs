@@ -1,7 +1,7 @@
 use catzero::{TFModel, TrainingData};
-use mcts::{transposition_table::ApproxTable, tree_policy::AlphaGoPolicy, GameState, MCTSManager};
+use mcts::{transposition_table::ApproxTable, tree_policy::AlphaGoPolicy, MCTSManager};
+use rand::seq::SliceRandom;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use rand::{prelude::IteratorRandom, seq::SliceRandom};
 
 include!("../src/lib.rs");
 
@@ -23,11 +23,11 @@ fn main() {
         0.001,
         1.0,
         3,
-        String::from("data/models/graph"),
+        String::from("data/chess/models/graph"),
     )
     .expect("Could not create new model");
 
-    let search_player = Player::Player1;
+    let search_player = ChessPlayer(Color::White);
 
     for episode in 0..EPISODES {
         let model = python_model
@@ -137,11 +137,16 @@ fn play_a_game(model: &TFModel) -> GameResult {
 
         {
             let v = moves.iter().map(|s| s.move_evaluation()).sum::<f64>() - 1.0f64;
-            assert!(v >= -0.001 && v <= 0.001, "Move evaluation should sum up to 1, but sums up to: {}", v);
+            assert!(
+                v >= -0.001 && v <= 0.001,
+                "Move evaluation should sum up to 1, but sums up to: {}",
+                v
+            );
         }
-        
-        let weighted_action = moves.choose_weighted(&mut rng, |i| i.move_evaluation()).expect("Could not get a random action");
-    
+
+        let weighted_action = moves
+            .choose_weighted(&mut rng, |i| i.move_evaluation())
+            .expect("Could not get a random action");
 
         histories.push((state.clone(), moves_to_tensor(root_node.moves())));
 

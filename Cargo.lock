@@ -109,6 +109,7 @@ dependencies = [
  "cpython",
  "hashbrown",
  "mcts",
+ "rand 0.8.4",
  "serde",
  "tensorflow",
 ]

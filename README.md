@@ -18,6 +18,8 @@ This project will probably end up in the dust, so excuses to any (if any) who co
 - Tensorflow
 - Keras
 - Numpy
+- Tensorboard
+- Elm
 
 ## How AlphaZero works (globally)
 How alpha zero works with a resnet split into two ends: Policy and Value networks.

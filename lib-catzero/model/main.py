@@ -56,7 +56,7 @@ def value_head(model: Model, reg_constant) -> Model:
     model = Dense(256)(model)
     model = Activation('relu')(model)
     model = Dense(1)(model)
-    model = Activation('tanh')(model)
+    model = Activation('tanh', name="value_head")(model)
     return model
 
 
@@ -67,7 +67,7 @@ def policy_head(model, reg_constant, flatten_size):
     model = Activation('relu')(model)
     model = Flatten()(model)
     model = Dense(flatten_size)(model)
-    return Activation("softmax", name="policy_h")(model)
+    return Activation("softmax", name="policy_head")(model)
 
 
 def tune(model: Model, inputs, probs, values, hyper_epochs, epochs):

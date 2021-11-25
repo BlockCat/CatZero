@@ -1,6 +1,7 @@
-use catzero::{CatZeroModel, TFModel};
+use std::rc::Rc;
+
+use catzero::{AlphaEvaluator, CatZeroModel, TFModel};
 use mcts::{transposition_table::ApproxTable, tree_policy::AlphaGoPolicy, GameState, MCTSManager};
-use tictactoe::TicTacToeAction;
 
 include!("../src/lib.rs");
 
@@ -9,28 +10,29 @@ const PLAYOUTS: usize = 200;
 
 fn main() {
     let tf = TFModel::load("data/models/graph/9").expect("Could not load model");    
+    let tf = Rc::new(tf);
 
     let mut state = TicTacToeState::default();
 
     while !state.is_terminal() {
         println!("{}", state);
-        let ac = find_npc_action(&state, &tf);
+        let ac = find_npc_action(&state, tf.clone());
         state.make_move(&ac);
     }
 
     println!("{}", state);
 }
 
-fn find_npc_action(state: &TicTacToeState, model: &TFModel) -> TicTacToeAction {
+fn find_npc_action(state: &TicTacToeState, model: Rc<TFModel>) -> TicTacToeAction {
     let manager = TicTacToeMCTS::default();
     let policy = AlphaGoPolicy::new(EXPLORATION);
 
     let mut mcts_manager = MCTSManager::new(
         state.clone(),
         manager.clone(),
-        evaluator::MyEvaluator {
+        AlphaEvaluator {
             winner: state.current_player(),
-            model: &model,
+            model: model,
         },
         policy.clone(),
         ApproxTable::new(1024),

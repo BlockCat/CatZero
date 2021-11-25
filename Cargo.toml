@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "lib-catzero",
-    "tictactoe",
+    "tictactoe/learn",
     "mcts",
     "chess",
 ]

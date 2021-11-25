@@ -3,7 +3,6 @@ use tensorflow::{Result, SessionRunArgs, Tensor};
 
 #[derive(Debug)]
 pub struct TFModel {
-    graph: Graph,
     bundle: SavedModelBundle,
     op_input: tensorflow::Operation,
     op_output_policy: tensorflow::Operation,
@@ -26,10 +25,10 @@ impl TFModel {
             .expect("Could not get input");
 
         let policy_output = default_sig
-            .get_output("policy_h")
+            .get_output("policy_head")
             .expect("Could not get policy output");
         let value_output = default_sig
-            .get_output("activation_10")
+            .get_output("value_head")
             .expect("Could not get activation?");
 
         let op_input = graph
@@ -47,7 +46,6 @@ impl TFModel {
         // println!("sigs: {:#?}", bundle.meta_graph_def().signatures());
 
         Ok(Self {
-            graph,
             bundle,
             op_input,
             op_output_policy,
@@ -59,32 +57,20 @@ impl TFModel {
         let mut session = SessionRunArgs::new();
 
         session.add_feed(&self.op_input, 0, &input);
-        let token1 = session.request_fetch(&self.op_output_value, 0);
-        let token2 = session.request_fetch(&self.op_output_policy, 1);
+        let value_token = session.request_fetch(&self.op_output_value, 1);
+        let policy_token = session.request_fetch(&self.op_output_policy, 0);
 
         self.bundle.session.run(&mut session)?;
 
-        let value = session.fetch(token1)?;
-        let policy = session.fetch(token2)?;
+
+        let value = session.fetch(value_token)?;
+        let policy = session.fetch(policy_token)?;
 
         Ok(TFEvaluation { policy, value })
     }
-
-    // pub fn learn(&mut self, steps: usize) -> Result<()> {
-    //     let me = self.bundle.meta_graph_def();
-
-    //     let mut session = SessionRunArgs::new();
-
-    //     session.add_feed(&self.op_input, 0, &input);
-
-    //     for _ in 0..steps {
-    //         self.bundle.session.run(&mut session);
-    //     }
-
-    //     Ok(())
-    // }
 }
 
+#[derive(Debug)]
 pub struct TFEvaluation {
     pub policy: Tensor<f32>,
     pub value: Tensor<f32>,
