@@ -1,7 +1,14 @@
-[workspace]
-members = [
-    "lib-catzero",
-    "tictactoe/learn",
-    "mcts",
-    "chess",
-]
+[package]
+name = "catzero"
+version = "0.1.0"
+authors = ["BlockCat"]
+edition = "2018"
+
+[dependencies]
+cpython = { version = "0.7.0", features = ["python-3-9"], default-features = false } 
+mcts = {  git = "https://github.com/BlockCat/mcts.git" }
+hashbrown = "0.1.7"
+tensorflow = { version = "0.17.0", features=["tensorflow_gpu"] }
+serde = {version = "1.0.130", features=["derive"] }
+bincode = "1.3.3"
+rand = "0.8.4"
