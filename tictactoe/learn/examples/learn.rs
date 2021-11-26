@@ -35,7 +35,7 @@ fn main() {
             .expect("Could not load model")
     };
 
-    for episode in start..EPISODES {
+    for episode in start.. {
         let model = python_model
             .to_tf_model(episode)
             .expect("Could not create tensor model");

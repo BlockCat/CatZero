@@ -10,7 +10,7 @@ include!("../src/lib.rs");
 
 const EXPLORATION: f64 = 1.4;
 const PLAYOUTS: usize = 550;
-const MODEL: usize = 18;
+const MODEL: usize = 130;
 
 fn main() {
     let tf = TFModel::load(&format!("data/models/graph/{}", MODEL)).expect("Could not load model");
@@ -45,7 +45,7 @@ fn find_npc_action(state: &TicTacToeState, model: &TFModel) -> TicTacToeAction {
         ApproxTable::new(1024),
     );    
     mcts_manager.playout_n(PLAYOUTS);
-    mcts_manager.tree().debug_moves();
+    // mcts_manager.tree().debug_moves();
 
 
     
