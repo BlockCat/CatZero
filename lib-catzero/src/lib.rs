@@ -1,15 +1,14 @@
-use mcts::{
-    transposition_table::ApproxTable, tree_policy::AlphaGoPolicy, GameState, MoveInfo, Moves, MCTS,
-};
+use mcts::{MCTSManager, MCTS};
 pub use model::CatZeroModel;
 use serde::{Deserialize, Serialize};
-use std::{fs::File, hash::Hash, io::Write, ops::Range};
+use std::{fs::File, io::Write, ops::Range, sync::Arc};
 
 // pub mod learn;
 mod model;
 mod player;
 mod pyenv;
 mod tf;
+mod utils;
 mod zero_mcts;
 
 // pub use learn::Playable;
@@ -17,12 +16,30 @@ pub use model::Tensor;
 pub use player::{AlphaPlayer, DefaultPlayer};
 pub use pyenv::PyEnv;
 pub use tf::TFModel;
+pub use utils::{play_a_game, GameResult};
 pub use zero_mcts::AlphaEvaluator;
 
-pub trait AlphaGame: MCTS<TreePolicy = AlphaGoPolicy> {
+pub trait AlphaGame: MCTS {
+    /// Get exploration constant
     fn get_exploration(&self) -> f64;
+    /// Get amount of playouts needed
     fn get_playouts(&self) -> usize;
-    fn moves_to_tensor(moves: &Vec<&MoveInfo<Self>>) -> Tensor<f32>;
+
+    /// Moves to evaluation, for MCTS
+    fn moves_to_evaluation(
+        moves: &mcts::MoveList<Self>,
+        policy: tensorflow::Tensor<f32>,
+    ) -> Vec<mcts::MoveEvaluation<Self>>;
+
+    /// Moves to tensor, for training (output policy)
+    fn moves_to_tensorflow(moves: Vec<&mcts::MoveInfo<Self>>) -> tensorflow::Tensor<f32>;
+
+    fn create_manager(
+        state: Self::State,
+        exploration_constant: f64,
+        playouts: usize,
+        model: Arc<TFModel>,
+    ) -> MCTSManager<Self>;
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

@@ -9,6 +9,9 @@ pub struct TFModel {
     op_output_value: tensorflow::Operation,
 }
 
+unsafe impl Send for TFModel {}
+unsafe impl Sync for TFModel {}
+
 impl TFModel {
     pub fn load(path: &str) -> Result<Self> {
         let options = SessionOptions::new();
